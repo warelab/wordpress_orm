@@ -5,25 +5,16 @@ WordPress API reference: https://developer.wordpress.org/rest-api/reference/medi
 '''
 
 import os
-import logging
+#import logging
 
 import requests
 
+from . import logger
 from .wordpress_entity import WPEntity, WPRequest, context_values
-
-media_schema = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
-			    "slug", "status", "type", "title", "author", "comment_status",
-			    "ping_status", "meta", "template", "alt_text", "caption", "description",
-			    "media_type", "mime_type", "media_details", "post", "source_url"]
-
-media_arguments = ["context", "page", "per_page", "search", "after", "author",
-				   "author_exclude", "before", "exclude", "include", "offset",
-				   "order", "orderby", "parent", "parent_exclude", "slug", "status",
-				   "media_type", "mime_type"]
 
 status_values = ["publish", "future", "draft", "pending", "private"]
 
-logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
+#logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 class Media(WPEntity):
 	
@@ -33,7 +24,7 @@ class Media(WPEntity):
 
 		# WordPress 'media' object schema
 		# -------------------------------
-		for label in media_schema:
+		for label in self.schema:
 			setattr(self, label, None)
 			
 	def __repr__(self):
@@ -42,6 +33,14 @@ class Media(WPEntity):
 																			self.mime_type,
 																			os.path.basename(self.source_url))
 
+	@property																			
+	def schema(self):
+		return ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
+			    "slug", "status", "type", "title", "author", "comment_status",
+			    "ping_status", "meta", "template", "alt_text", "caption", "description",
+			    "media_type", "mime_type", "media_details", "post", "source_url"]
+	
+
 class MediaRequest(WPRequest):
 	'''
 	'''
@@ -49,7 +48,14 @@ class MediaRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.wpid = None # WordPress id
-		
+	
+	@property
+	def argument_names(self):
+		return ["context", "page", "per_page", "search", "after", "author",
+				"author_exclude", "before", "exclude", "include", "offset",
+				"order", "orderby", "parent", "parent_exclude", "slug", "status",
+				"media_type", "mime_type"]
+	
 	def get(self):
 		self.url = self.api.base_url + "media"
 		

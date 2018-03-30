@@ -1,5 +1,5 @@
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 import requests
 
@@ -15,6 +15,11 @@ class WPEntity(metaclass=ABCMeta):
 			raise Exception("Use the 'API.{0}()' method to create a new '{0}' object.".format(self.__class__.__name__))
 		
 		self.api = api
+		self.json = None
+		
+	@abstractproperty
+	def schema(self):
+		pass
 
 class WPRequest(metaclass=ABCMeta):
 	'''
@@ -24,11 +29,15 @@ class WPRequest(metaclass=ABCMeta):
 		self.api = api
 		self.arguments = dict()
 		self.response = None
-
+	
 	@property
 	def context(self):
 		# 'view' is default value in API
 		return self.arguments.get("context", "view")
+
+	@abstractproperty
+	def argument_names(self):
+		pass
 
 	@abstractmethod
 	def get(self):

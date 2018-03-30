@@ -1,6 +1,7 @@
 
 from .entities.post import Post, PostRequest
 from .entities.media import Media, MediaRequest
+from .entities.user import User, UserRequest
 
 class API:
 	'''
@@ -31,7 +32,7 @@ class API:
 		if return_value is None:
 			return None
 		else:
-			return pr.get()[0]
+			return return_value[0]
 	
 	def MediaRequest(self):
 		''' Factory method that returns a new MediaRequest. '''
@@ -52,4 +53,21 @@ class API:
 		if return_value is None:
 			return None
 		else:
-			return mr.get()[0]
+			return return_value[0]
+	
+	def user(self, wpid=None):
+		'''
+		Returns a User object from the WordPress API.
+		
+		wpid : WordPress ID
+		
+		Returns all 'user' objects if no id is provided.
+		'''
+		ur = UserRequest(api=self)
+		if wpid is not None:
+			ur.wpid = wpid
+		return_value = ur.get()
+		if return_value is None:
+			return None
+		else:
+			return return_value[0]

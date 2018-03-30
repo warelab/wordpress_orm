@@ -4,25 +4,14 @@
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
 '''
 
-import logging
-
+from . import logger
 from .wordpress_entity import WPEntity, WPRequest, context_values
-
-post_schema = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
-			   "slug", "status", "type", "password", "title", "content", "author",
-			   "excerpt", "featured_media", "comment_status", "ping_status", "format",
-			   "meta", "sticky", "template", "categories", "tags"]
-			   
-posts_arguments = ["context", "page", "per_page", "search", "after", "author",
-				   "author_exclude", "before", "exclude", "include", "offset",
-				   "order", "orderby", "slug", "statis", "categories",
-				   "categories_exclude", "tags", "tags_exclude", "sticky"]
 
 order_values = ["asc", "desc"]
 orderby_values = ["author", "date", "id", "include", "modified", "parent",
 				  "relevance", "slug", "title"]
 
-logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
+#logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 class Post(WPEntity):
 
@@ -32,7 +21,7 @@ class Post(WPEntity):
 
 		# WordPress 'post' object schema
 		# ------------------------------
-		for label in post_schema:
+		for label in self.schema:
 			setattr(self, label, None)
 			
 	def __repr__(self):
@@ -42,6 +31,13 @@ class Post(WPEntity):
 			truncated_title = self.title[0:10] + "..."
 		return "<{0} object at {1}, id={2}, title='{3}'>".format(self.__class__.__name__, hex(id(self)), self.wpid, truncated_title)
 
+	@property
+	def schema(self):
+		return ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
+			   "slug", "status", "type", "password", "title", "content", "author",
+			   "excerpt", "featured_media", "comment_status", "ping_status", "format",
+			   "meta", "sticky", "template", "categories", "tags"]
+
 class PostRequest(WPRequest):
 	'''
 	'''
@@ -49,6 +45,15 @@ class PostRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.wpid = None # WordPress id
+
+	@property
+	def argument_names(self):
+		'''
+		'''
+		return ["context", "page", "per_page", "search", "after", "author",
+				"author_exclude", "before", "exclude", "include", "offset",
+				"order", "orderby", "slug", "statis", "categories",
+				"categories_exclude", "tags", "tags_exclude", "sticky"]
 
 	def get(self):
 		'''
@@ -79,8 +84,7 @@ class PostRequest(WPRequest):
 		posts = list()
 		for d in posts_data:
 			post = Post(api=self.api)
-			
-			print(d)
+			post.json = d
 			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#

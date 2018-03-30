@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 import os
 import sys
@@ -39,7 +40,7 @@ if True:
 		posts = pr.get()
 
 	for post in posts:
-		print(post.wpid)
+		print(post)
 
 post = api.post(wpid=1)
 
@@ -47,3 +48,6 @@ print (post)
 media = api.media(wpid=32)
 
 print(media)
+
+user = api.user(wpid=1)
+print("{0}".format(user))
