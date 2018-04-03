@@ -17,6 +17,9 @@ class WPEntity(metaclass=ABCMeta):
 		self.api = api
 		self.json = None
 		
+		for label in self.schema:
+			setattr(self, label, None)
+		
 	@abstractproperty
 	def schema(self):
 		pass
@@ -26,17 +29,26 @@ class WPRequest(metaclass=ABCMeta):
 	Abstract superclass for WordPress requests.
 	'''
 	def __init__(self, api=None):
+		
+		if api is None:
+			raise Exception("Create this object ('{}') from the API object, not directly.".format(self.__class__.__name__))
+		
 		self.api = api
-		self.arguments = dict()
+		self.parameters = dict()
 		self.response = None
+		
+		for arg in self.parameter_names:
+			setattr(self, arg, None)
+
+		self.context = "view" # default value
 	
-	@property
-	def context(self):
-		# 'view' is default value in API
-		return self.arguments.get("context", "view")
+#	@property
+#	def context(self):
+#		# 'view' is default value in API
+#		return self.arguments.get("context", "view")
 
 	@abstractproperty
-	def argument_names(self):
+	def parameter_names(self):
 		pass
 
 	@abstractmethod
@@ -46,10 +58,10 @@ class WPRequest(metaclass=ABCMeta):
 	def get_response(self):
 		if self.response is None:
 			if self.api.session is None:
-				self.response = requests.get(url=self.url, params=self.arguments)
+				self.response = requests.get(url=self.url, params=self.parameters)
 			else:
 				# use existing session
-				self.response = self.api.session.get(url=self.url, params=self.arguments)
+				self.response = self.api.session.get(url=self.url, params=self.parameters)
 		self.response.raise_for_status()
 		#return self.response
 	

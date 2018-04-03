@@ -1,7 +1,15 @@
 
-from .entities.post import Post, PostRequest
-from .entities.media import Media, MediaRequest
-from .entities.user import User, UserRequest
+#from .entities.post import Post, PostRequest
+#from .entities.media import Media, MediaRequest
+#from .entities.user import User, UserRequest
+
+import logging
+
+from .entities import post, user, media
+
+#import wordpress_orm
+
+logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 class API:
 	'''
@@ -12,8 +20,8 @@ class API:
 		self.session = None
 		
 	def PostRequest(self):
-		''' Factory method that returns a new PostRequest. '''
-		return PostRequest(api=self)
+		''' Factory method that returns a new PostRequest attached to this API. '''
+		return post.PostRequest(api=self)
 
 	def post(self, wpid=None):
 		# fetch the post from the provided WordPress ID
@@ -25,7 +33,7 @@ class API:
 		
 		Returns all 'media' objects if no id is provided.
 		'''
-		pr = PostRequest(api=self)
+		pr = post.PostRequest(api=self)
 		if wpid is not None:
 			pr.wpid = wpid
 		return_value = pr.get()
@@ -35,8 +43,8 @@ class API:
 			return return_value[0]
 	
 	def MediaRequest(self):
-		''' Factory method that returns a new MediaRequest. '''
-		return MediaRequest(api=self)
+		''' Factory method that returns a new MediaRequest attached to this API. '''
+		return media.MediaRequest(api=self)
 
 	def media(self, wpid=None):
 		'''
@@ -46,7 +54,7 @@ class API:
 		
 		Returns all 'media' objects if no id is provided.
 		'''
-		mr = MediaRequest(api=self)
+		mr = media.MediaRequest(api=self)
 		if wpid is not None:
 			mr.wpid = wpid
 		return_value = mr.get()
@@ -55,7 +63,7 @@ class API:
 		else:
 			return return_value[0]
 	
-	def user(self, wpid=None):
+	def user(self, wpid=None, username=None):
 		'''
 		Returns a User object from the WordPress API.
 		
@@ -63,11 +71,28 @@ class API:
 		
 		Returns all 'user' objects if no id is provided.
 		'''
-		ur = UserRequest(api=self)
-		if wpid is not None:
+		if all([wpid, username]):
+			raise Exception("Only the WordPress id (wpid) or the username can be specified, not both.")
+
+		if wpid:
+			ur = user.UserRequest(api=self)
 			ur.wpid = wpid
-		return_value = ur.get()
-		if return_value is None:
-			return None
-		else:
-			return return_value[0]
+			return_value = ur.get()
+			if return_value is None:
+				return None
+			else:
+				return return_value[0]
+		elif username:
+			ur = user.UserRequest(api=self)
+			ur.parameters = {
+				"search":username
+			}
+			return_value = ur.get()
+			if return_value is None:
+				return None
+			else:
+				return return_value[0]
+
+	def UserRequest(self):
+		''' Factory method that returns a new UserRequest attached to this API. '''
+		return user.UserRequest(api=self)

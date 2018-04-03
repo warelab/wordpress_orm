@@ -5,27 +5,20 @@ WordPress API reference: https://developer.wordpress.org/rest-api/reference/medi
 '''
 
 import os
-#import logging
+import logging
 
 import requests
 
-from . import logger
 from .wordpress_entity import WPEntity, WPRequest, context_values
 
-status_values = ["publish", "future", "draft", "pending", "private"]
+logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
-#logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
+status_values = ["publish", "future", "draft", "pending", "private"]
 
 class Media(WPEntity):
 	
 	def __init__(self, wpid=None, api=None):
-
 		super().__init__(api=api)
-
-		# WordPress 'media' object schema
-		# -------------------------------
-		for label in self.schema:
-			setattr(self, label, None)
 			
 	def __repr__(self):
 		return "<{0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
@@ -49,8 +42,12 @@ class MediaRequest(WPRequest):
 		super().__init__(api=api)
 		self.wpid = None # WordPress id
 	
+		# parameters that undergo validation, i.e. need custom setter
+		# default values set here
+		self._context = "view"
+
 	@property
-	def argument_names(self):
+	def parameter_names(self):
 		return ["context", "page", "per_page", "search", "after", "author",
 				"author_exclude", "before", "exclude", "include", "offset",
 				"order", "orderby", "parent", "parent_exclude", "slug", "status",
@@ -63,6 +60,10 @@ class MediaRequest(WPRequest):
 			self.url += "/{}".format(self.wpid)
 		
 		logger.debug("URL='{}'".format(self.url))
+
+		# set parameters
+		if self.context:
+			self.parameters["context"] = self.context
 		
 		try:
 			self.get_response()
@@ -119,7 +120,24 @@ class MediaRequest(WPRequest):
 		
 		return media_objects
 	
+	@property
+	def context(self):
+		return self._context
 	
+	@context.setter
+	def context(self, value):
+		if value is None:
+			self._context =  "view" # default
+		else:
+			try:
+				value = value.lower()
+				if value in ["view", "embed", "edit"]:
+					self._context = value
+					return
+			except:
+				pass
+			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
+
 
 	
 

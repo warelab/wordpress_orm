@@ -4,8 +4,15 @@
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
 '''
 
-from . import logger
+import json
+import logging
+import requests
+
 from .wordpress_entity import WPEntity, WPRequest, context_values
+from .user import User
+from .. import exc
+
+logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 order_values = ["asc", "desc"]
 orderby_values = ["author", "date", "id", "include", "modified", "parent",
@@ -16,13 +23,7 @@ orderby_values = ["author", "date", "id", "include", "modified", "parent",
 class Post(WPEntity):
 
 	def __init__(self, wpid=None, session=None, api=None):
-
 		super().__init__(api=api)
-
-		# WordPress 'post' object schema
-		# ------------------------------
-		for label in self.schema:
-			setattr(self, label, None)
 			
 	def __repr__(self):
 		if len(self.title) < 11:
@@ -38,21 +39,38 @@ class Post(WPEntity):
 			   "excerpt", "featured_media", "comment_status", "ping_status", "format",
 			   "meta", "sticky", "template", "categories", "tags"]
 
+	@property
+	def featured_media_object(self):
+		mr = self.api.MediaRequest()
+		mr.wpid = self.featured_media
+		media_list = mr.get()
+		if len(media_list) == 1:
+			return media_list[0]
+		else:
+			return None
+	
+
 class PostRequest(WPRequest):
 	'''
 	'''
 		
-	def __init__(self, api=None):
+	def __init__(self, api=None):		
 		super().__init__(api=api)
-		self.wpid = None # WordPress id
+		self.wpid = None # WordPress ID
 
+		# parameters that undergo validation, i.e. need custom setter
+		self._author = None
+		self._order = None
+		self._orderby = None
+		self._status = None
+		
 	@property
-	def argument_names(self):
+	def parameter_names(self):
 		'''
 		'''
 		return ["context", "page", "per_page", "search", "after", "author",
 				"author_exclude", "before", "exclude", "include", "offset",
-				"order", "orderby", "slug", "statis", "categories",
+				"order", "orderby", "slug", "status", "categories",
 				"categories_exclude", "tags", "tags_exclude", "sticky"]
 
 	def get(self):
@@ -63,16 +81,23 @@ class PostRequest(WPRequest):
 		
 		if self.wpid:
 			self.url += "/{}".format(self.wpid)
-		
-		logger.debug("URL='{}'".format(self.url))
 
+		# populate parameters
+		#
+		if self.context:
+			self.parameters["context"] = self.context
+		if self._status:
+			self.parameters["status"] = ",".join(self.status)
+		
 		try:
 			self.get_response()
+			logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
 			logger.debug("Post response code: {}".format(self.response.status_code))
-			if self.response.status_code == 404:
-				return None
-			elif self.response.status_code == 404:
+			if self.response.status_code == 400: # bad request
+				logger.debug("URL={}".format(self.response.url))
+				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
+			elif self.response.status_code == 404: # not found
 				return None
 			
 		posts_data = self.response.json()
@@ -139,18 +164,82 @@ class PostRequest(WPRequest):
 			posts.append(post)
 			
 		return posts
+	
+	@property
+	def context(self):
+		if self._context is None:
+			self._context = None
+		return self._context
+	
+	@context.setter
+	def context(self, value):
+		if value is None:
+			self._context =  None
+			return
+		else:
+			try:
+				value = value.lower()
+				if value in ["view", "embed", "edit"]:
+					self._context = value
+					return
+			except:
+				pass
+			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
+	
+	@property
+	def author(self):
+		return self._author
 		
+	@author.setter
+	def author(self, value):
+		''' Set author parameter for this request; stores WordPress user ID. '''
+		if value is None:
+			self.parameters.pop("author", None) # remove key
+			self._author = None
+
+		elif isinstance(value, User):
+			self.parameters["author"] = value.wpid
+			self._author = value.wpid
+
+		elif isinstance(value, int):
+			self.parameters["author"] = value # assuming WordPress ID
+			self._author = value
+
+		elif isinstance(value, str):
+			# is this string value the WordPress user ID?
+			try:
+				self.parameters["author"] = int(value)
+			except ValueError:
+				pass
+			# is this string value the WordPress username? If so, try to get the User object
+			user = self.api.user(username=value) # raises exception
+			self.parameters["author"] = user.wpid
+			self._author = user
+							
+		else:
+			raise ValueError("Unexpected value type passed to 'author' (type: '{1}')".format(type(value)))
+
+	
 	@property
 	def order(self):
-		return self.api_params.get('order', None)
+		return self._order;
+		#return self.api_params.get('order', None)
 		
 	@order.setter
 	def order(self, value):
-		value = value.lower()
-		if value not in order_values:
-			raise ValueError('The "order" parameter must be one of these values: {}'.format(order_values))
+		if value is None:
+			self._order = None
 		else:
-			self.api_params['order'] = value
+			if isinstance(value, str):
+				value = value.lower()
+				if value not in order_values:
+					raise ValueError('The "order" parameter must be one of these values: {}'.format(order_values))
+				else:
+					#self.api_params['order'] = value
+					self._order = value
+			else:
+				raise ValueError('The "order" parameter must be one of these values: {} (or None).'.format(order_values))
+		return self._order
 
 	@property
 	def orderby(self):
@@ -158,8 +247,43 @@ class PostRequest(WPRequest):
 		
 	@orderby.setter
 	def orderby(self, value):
-		value = value.lower()
-		if value not in orderby_values:
-			raise ValueError('The "orderby" parameter must be one of these values: {}'.format(orderby_values))
+		if value is None:
+			self._orderby = None
 		else:
-			self.api_params['orderby'] = value
+			if isinstance(value, str):
+				value = value.lower()
+				if value not in orderby_values:
+					raise ValueError('The "orderby" parameter must be one of these values: {}'.format(orderby_values))
+				else:
+					#self.api_params['orderby'] = value
+					self._orderby = value
+			else:
+				raise ValueError('The "orderby" parameter must be one of these values: {} (or None).'.format(orderby_values))
+		return self._orderby
+
+	@property
+	def status(self):
+		return self._status
+	
+	@status.setter
+	def status(self, value):
+		'''
+		
+		Note that 'status' may contain one or more values.
+		Ref: https://developer.wordpress.org/rest-api/reference/posts/#arguments
+		'''
+		if value is None:
+			self._status = None # set default value
+			return
+		try:
+			value = value.lower()
+			if value in ["draft", "pending", "private", "publish", "future"]:
+				# may be one or more values; store as a list
+				if self._status:
+					self._status.append(value)
+				else:
+					self._status = [value]
+				return
+		except:
+			pass
+		raise ValueError("'status' must be one of ['draft', 'pending', 'private', 'publish', 'future'] ('{0}' given)".format(value))

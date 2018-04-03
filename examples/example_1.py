@@ -31,8 +31,7 @@ if True:
 		pr = api.PostRequest()
 		pr.arguments = {
 				"orderby":"date",
-				"order":"desc",
-				"filter[category_name]":"blog"
+				"order":"desc"
 		}
 	#	pr.arguments["orderby"] = "date"
 	#	pr.arguments["order"] = "desc"
@@ -49,5 +48,13 @@ media = api.media(wpid=32)
 
 print(media)
 
-user = api.user(wpid=1)
-print("{0}".format(user))
+#user = api.user(wpid=1)
+#print("{0}".format(user))
+
+user = api.user(username="muna")
+
+print(user)
+
+for post in user.posts:
+	print("    {}".format(post.featured_media_object.source_url))
+
