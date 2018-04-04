@@ -233,12 +233,14 @@ class PostRequest(WPRequest):
 			if isinstance(value, str):
 				value = value.lower()
 				if value not in order_values:
-					raise ValueError('The "order" parameter must be one of these values: {}'.format(order_values))
+					raise ValueError('The "order" parameter must be one '+\
+									 'of these values: {}'.format(order_values))
 				else:
 					#self.api_params['order'] = value
 					self._order = value
 			else:
-				raise ValueError('The "order" parameter must be one of these values: {} (or None).'.format(order_values))
+				raise ValueError('The "order" parameter must be one of '+\
+								 'these values: {} (or None).'.format(order_values))
 		return self._order
 
 	@property
@@ -253,12 +255,14 @@ class PostRequest(WPRequest):
 			if isinstance(value, str):
 				value = value.lower()
 				if value not in orderby_values:
-					raise ValueError('The "orderby" parameter must be one of these values: {}'.format(orderby_values))
+					raise ValueError('The "orderby" parameter must be one '+\
+									 'of these values: {}'.format(orderby_values))
 				else:
 					#self.api_params['orderby'] = value
 					self._orderby = value
 			else:
-				raise ValueError('The "orderby" parameter must be one of these values: {} (or None).'.format(orderby_values))
+				raise ValueError('The "orderby" parameter must be one of these '+\
+								 'values: {} (or None).'.format(orderby_values))
 		return self._orderby
 
 	@property

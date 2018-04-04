@@ -1,4 +1,3 @@
 
 from .api import API
-#from .entities.user import User
-#from .entities.post import Post, PostRequest
+from .api import wp_session
