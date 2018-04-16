@@ -70,3 +70,5 @@ print()
 post = api.post(slug='the-bloomless-mutant-a-paragon-of-modern-sorghum-genetic-and-genomic-resources')
 print(post)
 
+raise Exception()
+

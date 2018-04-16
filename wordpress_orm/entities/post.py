@@ -143,7 +143,7 @@ class PostRequest(WPRequest):
 			post.s.slug = d["slug"]
 			post.s.type = d["type"]
 			post.s.author = d["author"]
-			post.s.excerpt = d["excerpt"]
+			post.s.excerpt = d["excerpt"]["rendered"]
 			post.s.featured_media = d["featured_media"]
 			
 			# Properties applicable to only 'view', 'edit' query contexts:
@@ -176,6 +176,7 @@ class PostRequest(WPRequest):
 			
 			# Properties applicable to only 'view' query contexts
 			#
+			print(d["title"])
 			if request_context == 'view':
 				post.s.title = d["title"]["rendered"]
 			else:

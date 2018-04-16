@@ -75,8 +75,9 @@ class UserRequest(WPRequest):
 		if self.id:
 			self.url += "/{}".format(self.id)
 				
+		# -------------------
 		# populate parameters
-		#
+		# -------------------
 		if self.context:
 			self.parameters["context"] = self.context
 			request_context = self.context
@@ -88,6 +89,8 @@ class UserRequest(WPRequest):
 		
 		if self.search:
 			self.parameters["search"] = self.search
+
+		# -------------------
 
 		try:
 			self.get_response()
