@@ -19,30 +19,73 @@ orderby_values = ["id", "include", "name", "slug", "term_group", "description", 
 
 class Category(WPEntity):
 	
-	def __init__(self, wpid=None, session=None, api=None):
+	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
 		
 	def __repr__(self):
-		return "<{0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.name)
+		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.name)
 	
 	@property
-	def schema(self):
+	def schema_fields(self):
 		return ["id", "count", "description", "link",
 				"name", "slug", "taxonomy", "parent", "meta"]
 	
+	# Pass-through properties
+	# -----------------------
+# 	@property
+# 	def id(self):
+# 		return self.s.id
+# 
+# 	@property
+# 	def count(self):
+# 		return self.s.count
+# 
+# 	@property
+# 	def description(self):
+# 		return self.s.description
+# 
+# 	@property
+# 	def link(self):
+# 		return self.s.link
+# 
+# 	@property
+# 	def name(self):
+# 		return self.s.name
+# 
+# 	@property
+# 	def slug(self):
+# 		return self.s.slug
+# 
+# 	@property
+# 	def taxonomy(self):
+# 		return self.s.taxonomy
+# 
+# 	@property
+# 	def parent(self):
+# 		return self.s.parent
+# 
+# 	@property
+# 	def meta(self):
+# 		return self.s.meta
+
+	
 	def posts(self):
+		'''
+		Return a list of posts (type: Post) that have this category.
+		'''
 		pr = self.api.PostRequest()
 		pr.categories.append(self)
 		posts = pr.get()
 		return posts
 
+
 class CategoryRequest(WPRequest):
 	'''
+	A class that encapsulates requests for WordPress categories.
 	'''
-	
 	def __init__(self, api=None):
 		super().__init__(api=api)
-		self.wpid = None # WordPress ID
+		self.id = None # WordPress ID
 		
 		# parameters that undergo validation, i.e. need custom setter
 		#
@@ -51,8 +94,8 @@ class CategoryRequest(WPRequest):
 		
 	@property
 	def parameter_names(self):	
-		return ["id", "count", "description", "link",
-				"name", "slug", "taxonomy", "parent", "meta"]
+		return ["context", "page", "per_page", "search", "exclude", "include",
+				"order", "orderby", "hide_empty", "parent", "post", "slug"]
 	
 	def get(self):
 		'''
@@ -60,14 +103,20 @@ class CategoryRequest(WPRequest):
 		'''
 		self.url = self.api.base_url + "categories"
 		
-		if self.wpid:
-			self.url += "/{}".format(self.wpid)
+		if self.id:
+			self.url += "/{}".format(self.id)
 
 		# populate parameters
 		#
-		for param in ["context", "page", "per_page", "search", "exclude",
-					  "include", "exclude", "include", "order", "orderby",
-					  "hide_empty", "parent", "post", "slug"]:
+		if self.context:
+			self.parameters["context"] = self.context
+			request_context = self.context
+		else:
+			request_context = "view" # default value
+
+		# populate parameters
+		#
+		for param in self.parameter_names:
 			if getattr(self, param, None):
 				self.parameters[param] = getattr(self, param)
 
@@ -96,19 +145,19 @@ class CategoryRequest(WPRequest):
 			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
-			category.id = d["id"]
-			category.link = d["link"]
-			category.name = d["name"]
-			category.slug = d["slug"]
-			category.taxonomy = d["taxonomy"]
+			category.s.id = d["id"]
+			category.s.link = d["link"]
+			category.s.name = d["name"]
+			category.s.slug = d["slug"]
+			category.s.taxonomy = d["taxonomy"]
 			
 			# Properties applicable to only 'view', 'edit' query contexts:
 			#
-			if self.context in ["view", "edit"]:
-				category.count = d["count"]
-				category.description = d["description"]
-				category.parent = d["parent"]
-				category.meta = d["meta"]
+			if request_context in ["view", "edit"]:
+				category.s.count = d["count"]
+				category.s.description = d["description"]
+				category.s.parent = d["parent"]
+				category.s.meta = d["meta"]
 			
 			categories.append(category)
 		
@@ -198,17 +247,22 @@ class CategoryRequest(WPRequest):
 	
 	@per_page.setter
 	def per_page(self, value):
-		if isinstance(value, str):
+		if value is None:
+			if "per_page" in self.parameters:
+				del self.parameters["per_page"]
+				
+		elif isinstance(value, str):
 			try:
 				value = int(value)
 			except ValueError:
 				raise ValueError("The 'per_page' parameter should be a number.")
 			
-		if isinstance(value, int):
+		elif isinstance(value, int):
 			if value < 0:
 				raise ValueError("The 'per_page' parameter should greater than zero.")
 			else:
 				self._per_page = value
+		
 		else:
 			raise ValueError("The 'per_page' parameter should be a number.")
 	

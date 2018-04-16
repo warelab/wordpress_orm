@@ -18,3 +18,7 @@ class BadRequest(WordPressORMException):
 class AuthenticationRequired(WordPressORMException):
 	''' Authentication required for this request. '''
 	pass
+
+class UserNotFound(WordPressORMException):
+	''' WordPress user not found. '''
+	pass

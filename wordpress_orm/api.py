@@ -32,15 +32,22 @@ class API:
 		''' Factory method that returns a new PostRequest attached to this API. '''
 		return post.PostRequest(api=self)
 
-	def post(self, wpid=None):
+	def post(self, id=None, slug=None):
 		'''
 		Returns a Post object from the WordPress API with the provided ID.
 		
-		wpid : WordPress ID
+		id : WordPress ID
 		'''
+		if len([x for x in [id, slug] if x is not None]) > 1:
+			raise Exception("Only one of [id, slug] can be specified at a time.")
+		
+		
 		pr = post.PostRequest(api=self)
-		if wpid is not None:
-			pr.wpid = wpid
+		if id is not None:
+			pr.id = id
+		
+		if slug:
+			pr.slug = slug
 			
 		posts = pr.get()
 		
@@ -56,68 +63,71 @@ class API:
 		''' Factory method that returns a new MediaRequest attached to this API. '''
 		return media.MediaRequest(api=self)
 
-	def media(self, wpid=None):
+	def media(self, id=None):
 		'''
 		Returns a Media object from the WordPress API with the provided ID.
 		
-		wpid : WordPress ID
+		id : WordPress ID
 		'''
 		mr = media.MediaRequest(api=self)
-		if wpid is not None:
-			mr.wpid = wpid
+		if id is not None:
+			mr.id = id
 
 		media_list = mr.get()
 
 		if len(media_list) == 1:
-			return posts[0]
+			return media_list[0]
 		elif len(media_list) == 0:
 			raise exc.NoEntityFound()
 		else:
 			# more than one found
 			assert False, "Should not get here!"
 	
-	def user(self, wpid=None, username=None):
+	def user(self, id=None, username=None, slug=None):
 		'''
 		Returns a User object from the WordPress API with the provided ID.
 		
-		wpid : WordPress ID
+		id : WordPress ID
 		'''
-		if all([wpid, username]):
-			raise Exception("Only the WordPress id (wpid) or the username can be specified, not both.")
+		if len([x for x in [id, username, slug] if x is not None]) > 1:
+			raise Exception("Only one of [id, username, slug] can be specified at a time.")
 
 		ur = user.UserRequest(api=self)
-		if wpid:
-			ur.wpid = wpid
+		if id:
+			ur.id = id
 		elif username:
 			ur.search = username
+		elif slug:
+			ur.slug = slug
 
 		users = ur.get()
 
 		if len(users) == 1:
-			return posts[0]
+			return users[0]
 		elif len(users) == 0:
 			raise exc.NoEntityFound()
 		else:
 			# more than one found
-			assert False, "Should not get here!"
+			logger.debug(users)
+			assert False, "Should not get here! Request: {0}".format(ur.request.url)
 
 	def UserRequest(self):
 		''' Factory method that returns a new UserRequest attached to this API. '''
 		return user.UserRequest(api=self)
 		
-	def category(self, wpid=None, slug=None, name=None):
+	def category(self, id=None, slug=None, name=None):
 		'''
 		Returns a Category object from the WordPress API by ID, slug, or name.
 		
-		wpid : WordPress ID
+		id : WordPress ID
 		'''
-		if len([x for x in [wpid, slug, name] if x is not None]) > 1:
-			raise Exception("Only one of 'wpid', 'slug', 'name' can be specified.")
+		if len([x for x in [id, slug, name] if x is not None]) > 1:
+			raise Exception("Only one of 'id', 'slug', 'name' can be specified.")
 		
 		cr = category.CategoryRequest(api=self)
 
-		if wpid:
-			cr.wpid = wpid
+		if id:
+			cr.id = id
 		elif slug:
 			cr.slug = slug
 

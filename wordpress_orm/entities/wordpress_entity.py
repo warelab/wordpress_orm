@@ -5,6 +5,15 @@ import requests
 
 context_values = ["view", "embed", "edit"]
 
+class WPSchema():
+	'''
+	Object representing the schema for each WordPress entity.
+	'''
+	#
+	# Properties are defined based on the field names, see below.
+	#
+	pass	
+
 class WPEntity(metaclass=ABCMeta):
 	'''
 	Abstract superclass for all entities of the WordPress API.
@@ -16,14 +25,19 @@ class WPEntity(metaclass=ABCMeta):
 		
 		self.api = api
 		self.json = None
+		self.s = WPSchema()
 		
-		for label in self.schema:
-			setattr(self, label, None)
+		# define the schema properties for the WPSchema object
+		for field in self.schema_fields:
+			setattr(self.s, field, None)
 		
 	@abstractproperty
-	def schema(self):
+	def schema_fields(self):
+		'''
+		This method returns a list of schema properties for this entity, e.g. ["id", "date", "slug", ...]
+		'''
 		pass
-
+	
 class WPRequest(metaclass=ABCMeta):
 	'''
 	Abstract superclass for WordPress requests.
@@ -40,7 +54,7 @@ class WPRequest(metaclass=ABCMeta):
 		for arg in self.parameter_names:
 			setattr(self, arg, None)
 
-		self.context = "view" # default value
+		#self.context = "view" # default value
 	
 #	@property
 #	def context(self):

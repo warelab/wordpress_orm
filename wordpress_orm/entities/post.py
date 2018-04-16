@@ -18,48 +18,62 @@ order_values = ["asc", "desc"]
 orderby_values = ["author", "date", "id", "include", "modified", "parent",
 				  "relevance", "slug", "title"]
 
-#logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
-
 class Post(WPEntity):
 
-	def __init__(self, wpid=None, session=None, api=None):
+	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
 			
 	def __repr__(self):
-		if len(self.title) < 11:
-			truncated_title = self.title
+		if len(self.s.title) < 11:
+			truncated_title = self.s.title
 		else:
-			truncated_title = self.title[0:10] + "..."
-		return "<{0} object at {1}, id={2}, title='{3}'>".format(self.__class__.__name__, hex(id(self)), self.wpid, truncated_title)
+			truncated_title = self.s.title[0:10] + "..."
+		return "<WP {0} object at {1}, id={2}, title='{3}'>".format(self.__class__.__name__, hex(id(self)), self.s.id, truncated_title)
 
 	@property
-	def schema(self):
+	def schema_fields(self):
 		return ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
 			   "slug", "status", "type", "password", "title", "content", "author",
 			   "excerpt", "featured_media", "comment_status", "ping_status", "format",
 			   "meta", "sticky", "template", "categories", "tags"]
 
 	@property
-	def featured_media_object(self):
+	def featured_media(self):
+		'''
+		Returns the 'Media' object that is the "featured media" for this post.
+		'''
 		mr = self.api.MediaRequest()
-		mr.wpid = self.featured_media
+		mr.id = self.s.featured_media
 		media_list = mr.get()
 		if len(media_list) == 1:
 			return media_list[0]
 		else:
 			return None
+			
+	@property
+	def user(self):
+		'''
+		Returns the author of this post, class: 'Author'.
+		'''
+		ur = self.api.UserRequest()
+		ur.id = self.author # ID for the author of the object
+		user_list = ur.get()
+		if len(user_list) == 1:
+			return user_list[0]
+		else:
+			raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
 	
 
 class PostRequest(WPRequest):
 	'''
-	'''
-		
+	A class that encapsulates requests for WordPress posts.
+	'''		
 	def __init__(self, api=None):		
 		super().__init__(api=api)
-		self.wpid = None # WordPress ID
+		self.id = None # WordPress ID
 
 		# parameters that undergo validation, i.e. need custom setter
-		self._author = None
+		#self._author = None
 		self._order = None
 		self._orderby = None
 		self._status = None
@@ -79,16 +93,26 @@ class PostRequest(WPRequest):
 		'''
 		self.url = self.api.base_url + "posts"
 		
-		if self.wpid:
-			self.url += "/{}".format(self.wpid)
+		if self.id:
+			self.url += "/{}".format(self.id)
 
+		# -------------------
 		# populate parameters
-		#
+		# -------------------
 		if self.context:
 			self.parameters["context"] = self.context
+			request_context = self.context
+		else:
+			request_context = "view" # default value
+			
 		if self._status:
 			self.parameters["status"] = ",".join(self.status)
+			
+		if self.slug:
+			self.parameters["slug"] = self.slug
 		
+		# -------------------
+
 		try:
 			self.get_response()
 			logger.debug("URL='{}'".format(self.request.url))
@@ -113,52 +137,52 @@ class PostRequest(WPRequest):
 			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
-			post.date = d["date"]
-			post.wpid = d["id"]
-			post.link = d["link"]
-			post.slug = d["slug"]
-			post.type = d["type"]
-			post.author = d["author"]
-			post.excerpt = d["excerpt"]
-			post.featured_media = d["featured_media"]
+			post.s.date = d["date"]
+			post.s.id = d["id"]
+			post.s.link = d["link"]
+			post.s.slug = d["slug"]
+			post.s.type = d["type"]
+			post.s.author = d["author"]
+			post.s.excerpt = d["excerpt"]
+			post.s.featured_media = d["featured_media"]
 			
 			# Properties applicable to only 'view', 'edit' query contexts:
 			#
-			if self.context in ["view", "edit"]:
+			if request_context in ["view", "edit"]:
 				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
 										"content", "comment_status", "ping_status", "format", "meta",
 										"sticky", "template", "categories", "tags"]
 				for key in view_edit_properties:
 					setattr(post, key, d[key])
-#				post.date_gmt = d["date_gmt"]
-#				post.guid = d["guid"]
-#				post.modified = d["modified"]
-#				post.modified_gmt = d["modified_gmt"]
-#				post.status = d["status"]
-#				post.content = d["content"]
-#				post.comment_status = d["comment_status"]
-#				post.ping_status = d["ping_status"]
-#				post.format = d["format"]
-#				post.meta = d["meta"]
-#				post.sticky = d["sticky"]
-#				post.template = d["template"]
-#				post.categories = d["categories"]
-#				post.tags = d["tags"]
+#				post.s.date_gmt = d["date_gmt"]
+#				post.s.guid = d["guid"]
+#				post.s.modified = d["modified"]
+#				post.s.modified_gmt = d["modified_gmt"]
+#				post.s.status = d["status"]
+#				post.s.content = d["content"]
+#				post.s.comment_status = d["comment_status"]
+#				post.s.ping_status = d["ping_status"]
+#				post.s.format = d["format"]
+#				post.s.meta = d["meta"]
+#				post.s.sticky = d["sticky"]
+#				post.s.template = d["template"]
+#				post.s.categories = d["categories"]
+#				post.s.tags = d["tags"]
 				
 			# Properties applicable to only 'edit' query contexts
 			#
-			if self.context in ['edit']:
-				post.password = d["password"]
+			if request_context in ['edit']:
+				post.s.password = d["password"]
 			
 			# Properties applicable to only 'view' query contexts
 			#
-			if self.context == 'view':
-				post.title = d["title"]["rendered"]
+			if request_context == 'view':
+				post.s.title = d["title"]["rendered"]
 			else:
 				# not sure what the returned 'title' object looks like
 				logger.debug(d)
 				logger.debug(d["title"])
-				logger.debug(self.context)
+				logger.debug(request_context)
 				raise NotImplementedError
 			
 			posts.append(post)
@@ -188,22 +212,23 @@ class PostRequest(WPRequest):
 	
 	@property
 	def author(self):
-		return self._author
+		#return self._author
+		return self.parameters.get("author", None)
 		
 	@author.setter
 	def author(self, value):
 		''' Set author parameter for this request; stores WordPress user ID. '''
 		if value is None:
 			self.parameters.pop("author", None) # remove key
-			self._author = None
+			self.g = None
 
 		elif isinstance(value, User):
-			self.parameters["author"] = value.wpid
-			self._author = value.wpid
+			self.parameters["author"] = value.s.id
+			#self._author = value.id
 
 		elif isinstance(value, int):
 			self.parameters["author"] = value # assuming WordPress ID
-			self._author = value
+			#self._author = value
 
 		elif isinstance(value, str):
 			# is this string value the WordPress user ID?
@@ -213,8 +238,8 @@ class PostRequest(WPRequest):
 				pass
 			# is this string value the WordPress username? If so, try to get the User object
 			user = self.api.user(username=value) # raises exception
-			self.parameters["author"] = user.wpid
-			self._author = user
+			self.parameters["author"] = user.s.id
+			#self._author = user
 							
 		else:
 			raise ValueError("Unexpected value type passed to 'author' (type: '{1}')".format(type(value)))

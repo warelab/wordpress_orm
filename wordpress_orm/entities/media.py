@@ -17,17 +17,17 @@ status_values = ["publish", "future", "draft", "pending", "private"]
 
 class Media(WPEntity):
 	
-	def __init__(self, wpid=None, api=None):
+	def __init__(self, id=None, api=None):
 		super().__init__(api=api)
 			
 	def __repr__(self):
-		return "<{0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
-																			self.id,
-																			self.mime_type,
-																			os.path.basename(self.source_url))
+		return "<WP {0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
+																			self.s.id,
+																			self.s.mime_type,
+																			os.path.basename(self.s.source_url))
 
 	@property																			
-	def schema(self):
+	def schema_fields(self):
 		return ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
 			    "slug", "status", "type", "title", "author", "comment_status",
 			    "ping_status", "meta", "template", "alt_text", "caption", "description",
@@ -40,11 +40,11 @@ class MediaRequest(WPRequest):
 
 	def __init__(self, api=None):
 		super().__init__(api=api)
-		self.wpid = None # WordPress id
+		self.id = None # WordPress id
 	
 		# parameters that undergo validation, i.e. need custom setter
 		# default values set here
-		self._context = "view"
+		self._context = None #"view"
 
 	@property
 	def parameter_names(self):
@@ -56,14 +56,17 @@ class MediaRequest(WPRequest):
 	def get(self):
 		self.url = self.api.base_url + "media"
 		
-		if self.wpid:
-			self.url += "/{}".format(self.wpid)
+		if self.id:
+			self.url += "/{}".format(self.id)
 		
 		logger.debug("URL='{}'".format(self.url))
 
 		# set parameters
 		if self.context:
 			self.parameters["context"] = self.context
+			request_context = self.context
+		else:
+			request_context = "view" # default value
 		
 		try:
 			self.get_response()
@@ -87,34 +90,34 @@ class MediaRequest(WPRequest):
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
 			#logger.debug(d)
-			media.date = d["date"]
-			media.id = d["id"]
-			media.link = d["link"]
-			media.slug = d["slug"]
-			media.type = d["type"]
-			media.title = d["title"]
-			media.author = d["author"]
-			media.alt_text = d["alt_text"]
-			media.caption = d["caption"]
-			media.media_type = d["media_type"]
-			media.mime_type = d["mime_type"]
-			media.media_details = d["media_details"]
-			media.source_url = d["source_url"]
+			media.s.date = d["date"]
+			media.s.id = d["id"]
+			media.s.link = d["link"]
+			media.s.slug = d["slug"]
+			media.s.type = d["type"]
+			media.s.title = d["title"]
+			media.s.author = d["author"]
+			media.s.alt_text = d["alt_text"]
+			media.s.caption = d["caption"]
+			media.s.media_type = d["media_type"]
+			media.s.mime_type = d["mime_type"]
+			media.s.media_details = d["media_details"]
+			media.s.source_url = d["source_url"]
 
 			# Properties applicable only to 'view', 'edit' query contexts
 			#
-			if self.context in ["view", "edit"]:
-				media.date_gmt = d["date_gmt"]
-				media.guid = d["guid"]
-				media.modified = d["modified"]
-				media.modified_gmt = d["modified_gmt"]
-				media.status = d["status"]
-				media.comment_status = d["comment_status"]
-				media.ping_status = d["ping_status"]
-				media.meta = d["meta"]
-				media.template = d["template"]
-				media.description = d["description"]
-				media.post = d["post"]
+			if request_context in ["view", "edit"]:
+				media.s.date_gmt = d["date_gmt"]
+				media.s.guid = d["guid"]
+				media.s.modified = d["modified"]
+				media.s.modified_gmt = d["modified_gmt"]
+				media.s.status = d["status"]
+				media.s.comment_status = d["comment_status"]
+				media.s.ping_status = d["ping_status"]
+				media.s.meta = d["meta"]
+				media.s.template = d["template"]
+				media.s.description = d["description"]
+				media.s.post = d["post"]
 				
 			media_objects.append(media)
 		
@@ -127,7 +130,7 @@ class MediaRequest(WPRequest):
 	@context.setter
 	def context(self, value):
 		if value is None:
-			self._context =  "view" # default
+			self._context = None
 		else:
 			try:
 				value = value.lower()
