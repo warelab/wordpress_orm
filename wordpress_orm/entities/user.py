@@ -34,7 +34,47 @@ class User(WPEntity):
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, name='{3}'>".format(self.__class__.__name__, hex(id(self)), self.s.id, self.s.name)
 	
-
+	def gravatar_url(self, size=200, rating='g', default_image_style="mm"):
+		'''
+		Returns a URL to the Gravatar image associated with the user's email address.
+		
+		Ref: https://en.gravatar.com/site/implement/images/
+		
+		size: int, can be anything from 1 to 2048 px
+		rating: str, maximum rating of the image, one of ['g', 'pg', 'r', 'x']
+		default_image: str, type of image if gravatar image doesn't exist, one of ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank']
+		'''
+		if rating not in ['g', 'pg', 'r', 'x']:
+			raise ValueError("The gravatar max rating must be one of ['g', 'pg', 'r', 'x'].")
+		
+		if default_image_style not in ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank']:
+			raise ValueError("The gravatar default image style must be one of ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank'].")			
+		
+		if not isinstance(size, int):
+			try:
+				size = int(size)
+			except ValueError:
+				raise ValueError("The size parameter must be an integer value between 1 and 2048.")
+		
+		if isinstance(size, int):
+			if 1 <= size <= 2048:
+				#
+				# self.s.avatar_urls is a dictionary with key=size and value=URL.
+				# Sizes are predetermined, but not documented. Values found were ['24', '48', '96'].
+				#
+				grav_urls_dict = self.s.avatar_urls
+				grav_url = grav_urls_dict[list(grav_urls_dict)[0]] # get any URL (we'll set our own size) / list(d) returns list of dictionary's keys
+				grav_url_base = grav_url.split("?")[0]
+				params = list()
+				params.append("d={0}".format(default_image_style)) # set default image to 'mystery man'
+				params.append("r={0}".format(rating)) # set max rating to 'g'
+				params.append("s={0}".format(size))
+				
+				return "{0}?{1}".format(grav_url_base, "&".join(params))
+		else:
+			raise ValueError("The size parameter must be an integer.")
+		
+	
 
 class UserRequest(WPRequest):
 	'''

@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 import requests
 
-from .entities import post, user, media, category
+from .entities import post, user, media, category, comment
 from . import exc
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
@@ -144,9 +144,30 @@ class API:
 		''' Factory method that returns a new CategoryRequest attached to this API. '''
 		return category.CategoryRequest(api=self)
 
+	def comment(self, id=None):
+		'''
+		Returns a Comment object from the WordPress API by ID.
+		'''
+		if id is None:
+			raise Exception("A comment 'id' must be specified.")
+			
+			cr = comment.CommentRequest(api=self)
+			
+			if id:
+				cr.id = id
+			
+			comments = cr.get()
+			if len(comments) == 1:
+				return comments[0]
+			elif len(comments) == 0:
+				raise exc.NoEntityFound()
+			else:
+				# more than one found
+				assert False, "Should not get here!"
 
-
-
+	def CommentRequest(self):
+		''' Factory method that returns a new CommentRequest attached to this API. '''
+		return comment.CommentRequest(api=self)
 
 
 

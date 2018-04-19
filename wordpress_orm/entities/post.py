@@ -51,17 +51,54 @@ class Post(WPEntity):
 			return None
 			
 	@property
-	def user(self):
+	def author(self):
 		'''
 		Returns the author of this post, class: 'Author'.
 		'''
 		ur = self.api.UserRequest()
-		ur.id = self.author # ID for the author of the object
+		ur.id = self.s.author # ID for the author of the object
 		user_list = ur.get()
 		if len(user_list) == 1:
 			return user_list[0]
 		else:
 			raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+	
+	@property
+	def categories(self):
+		'''
+		Returns a list of categories assigned to this post as 'Category' objects.
+		'''
+		categories = list()
+		
+		cr = self.api.CategoryRequest()
+		for category_id in self.s.categories:
+			cr.id = category_id
+			category_list = cr.get()
+			if len(category_list) > 0:
+				categories.append(category_list[0])
+		return categories
+		
+	@property
+	def category_names(self):
+		'''
+		Returns a list of category names as strings, not Category objects.
+		'''
+		return [c.s.name for c in self.categories]
+	
+	@property
+	def comments(self):
+		'''
+		Returns a list of comments assigned to this post as 'Comment' objects.
+		'''
+		comments = list()
+		
+		cr = self.api.CommentRequest()
+		cr.post = self.s.id
+		comment_data = cr.get()
+		if len(comment_data) > 0:
+			return comment_data
+		else:
+			return list()
 	
 
 class PostRequest(WPRequest):
@@ -152,22 +189,22 @@ class PostRequest(WPRequest):
 				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
 										"content", "comment_status", "ping_status", "format", "meta",
 										"sticky", "template", "categories", "tags"]
-				for key in view_edit_properties:
-					setattr(post, key, d[key])
-#				post.s.date_gmt = d["date_gmt"]
-#				post.s.guid = d["guid"]
-#				post.s.modified = d["modified"]
-#				post.s.modified_gmt = d["modified_gmt"]
-#				post.s.status = d["status"]
-#				post.s.content = d["content"]
-#				post.s.comment_status = d["comment_status"]
-#				post.s.ping_status = d["ping_status"]
-#				post.s.format = d["format"]
-#				post.s.meta = d["meta"]
-#				post.s.sticky = d["sticky"]
-#				post.s.template = d["template"]
-#				post.s.categories = d["categories"]
-#				post.s.tags = d["tags"]
+#				for key in view_edit_properties:
+#					setattr(post, key, d[key])
+				post.s.date_gmt = d["date_gmt"]
+				post.s.guid = d["guid"]
+				post.s.modified = d["modified"]
+				post.s.modified_gmt = d["modified_gmt"]
+				post.s.status = d["status"]
+				post.s.content = d["content"]["rendered"]
+				post.s.comment_status = d["comment_status"]
+				post.s.ping_status = d["ping_status"]
+				post.s.format = d["format"]
+				post.s.meta = d["meta"]
+				post.s.sticky = d["sticky"]
+				post.s.template = d["template"]
+				post.s.categories = d["categories"]
+				post.s.tags = d["tags"]
 				
 			# Properties applicable to only 'edit' query contexts
 			#
