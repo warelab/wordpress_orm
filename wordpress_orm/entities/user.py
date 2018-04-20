@@ -74,6 +74,9 @@ class User(WPEntity):
 		else:
 			raise ValueError("The size parameter must be an integer.")
 		
+	@property
+	def fullname(self):
+		return "{0} {1}".format(self.s.first_name, self.s.last_name)
 	
 
 class UserRequest(WPRequest):

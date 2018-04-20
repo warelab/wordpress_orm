@@ -28,9 +28,9 @@ class API:
 		self.base_url = url
 		self.session = None
 		
-	def PostRequest(self):
+	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
-		return post.PostRequest(api=self)
+		return post.PostRequest(api=self, **kwargs)
 
 	def post(self, id=None, slug=None):
 		'''
@@ -59,9 +59,9 @@ class API:
 			# more than one found
 			assert False, "Should not get here!"
 	
-	def MediaRequest(self):
+	def MediaRequest(self, **kwargs):
 		''' Factory method that returns a new MediaRequest attached to this API. '''
-		return media.MediaRequest(api=self)
+		return media.MediaRequest(api=self, **kwargs)
 
 	def media(self, id=None):
 		'''
@@ -111,9 +111,9 @@ class API:
 			logger.debug(users)
 			assert False, "Should not get here! Request: {0}".format(ur.request.url)
 
-	def UserRequest(self):
+	def UserRequest(self, **kwargs):
 		''' Factory method that returns a new UserRequest attached to this API. '''
-		return user.UserRequest(api=self)
+		return user.UserRequest(api=self, **kwargs)
 		
 	def category(self, id=None, slug=None, name=None):
 		'''
@@ -140,9 +140,9 @@ class API:
 			# more than one found
 			assert False, "Should not get here!"
 
-	def CategoryRequest(self):
+	def CategoryRequest(self, **kwargs):
 		''' Factory method that returns a new CategoryRequest attached to this API. '''
-		return category.CategoryRequest(api=self)
+		return category.CategoryRequest(api=self, **kwargs)
 
 	def comment(self, id=None):
 		'''
@@ -165,9 +165,9 @@ class API:
 				# more than one found
 				assert False, "Should not get here!"
 
-	def CommentRequest(self):
+	def CommentRequest(self, **kwargs):
 		''' Factory method that returns a new CommentRequest attached to this API. '''
-		return comment.CommentRequest(api=self)
+		return comment.CommentRequest(api=self, **kwargs)
 
 
 

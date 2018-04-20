@@ -9,7 +9,7 @@ import logging
 import requests
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
-from .post import PostRequest
+#from .post import PostRequest
 from ..import exc
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
@@ -23,7 +23,7 @@ class Category(WPEntity):
 		super().__init__(api=api)
 		
 	def __repr__(self):
-		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.s.name)
+		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.name)
 	
 	@property
 	def schema_fields(self):

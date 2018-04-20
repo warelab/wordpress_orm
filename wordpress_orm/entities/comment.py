@@ -4,16 +4,18 @@ WordPress API reference: https://developer.wordpress.org/rest-api/reference/comm
 
 import json
 import logging
-#import requests
+import requests
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
-from .post import PostRequest
+from .post import Post
 from ..import exc
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 order_values = ["asc", "desc"]
 orderby_values = ["date", "date_gmt", "id", "include", "post", "parent", "type"]
+
+# -
 
 class Comment(WPEntity):
 	
@@ -54,11 +56,16 @@ class CommentRequest(WPRequest):
 	A class that encapsulates requests for WordPress comments.
 	'''
 
-	def __init__(self, api=None):
+	def __init__(self, api=None, post=None):
 		super().__init__(api=api)
 		self.id = None # WordPress ID
 		
 		self._context = None
+		self._posts = list()
+
+		if post:
+			# initializer takes one; set the property manually to set several
+			self.posts = [post]
 		
 		# parameters that undergo validation, i.e. need custom setter
 		#
@@ -92,8 +99,9 @@ class CommentRequest(WPRequest):
 		if self.password:
 			self.parameters["password"] = self.password
 			
-		if self.post:
-			self.parameters["post"] = self.post # post ID
+		if len(self.posts) > 0:
+			logger.debug("Posts: {0}".format(self.posts))
+			self.parameters["post"] = ",".join(self.posts) # post ID
 		# -------------------
 
 		try:
@@ -217,7 +225,39 @@ class CommentRequest(WPRequest):
 								 'values: {} (or None).'.format(orderby_values))
 		return self._orderby
 
+	@property
+	def posts(self):
+		'''
+		The list of posts (IDs) to retrieve the comments for.
+		'''
+		return self._posts
+		
+	@posts.setter
+	def posts(self, values):
+		'''
+		Set the list of posts to retrieve comments for.
+		'''
+		
+		# internally save the post ID.
+		
+		if values is None:
+			self._posts = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Posts must be provided as a list (or append to the existing list).")
 
+		for p in values:
+			post_id = None
+			if isinstance(p, Post):
+				post_id = p.s.id
+			elif isinstance(p, int):
+				post_id = p
+			elif isinstance(p, str):
+				try:
+					post_id = int(p)
+				except ValueError:
+					raise ValueError("Posts must be provided as a list of (or append to the existing list). Accepts 'Post' objects or Post IDs.")
+			self._posts.append(str(post_id))
 
 
 

@@ -1,4 +1,4 @@
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 '''
 
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
@@ -7,9 +7,11 @@ WordPress API reference: https://developer.wordpress.org/rest-api/reference/post
 import json
 import logging
 import requests
+from datetime import datetime
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
 from .user import User
+from .category import Category
 from .. import exc
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
@@ -28,7 +30,8 @@ class Post(WPEntity):
 			truncated_title = self.s.title
 		else:
 			truncated_title = self.s.title[0:10] + "..."
-		return "<WP {0} object at {1}, id={2}, title='{3}'>".format(self.__class__.__name__, hex(id(self)), self.s.id, truncated_title)
+		return "<WP {0} object at {1}, id={2}, title='{3}'>".format(self.__class__.__name__,
+													 hex(id(self)), self.s.id, truncated_title)
 
 	@property
 	def schema_fields(self):
@@ -53,7 +56,7 @@ class Post(WPEntity):
 	@property
 	def author(self):
 		'''
-		Returns the author of this post, class: 'Author'.
+		Returns the author of this post, class: 'User'.
 		'''
 		ur = self.api.UserRequest()
 		ur.id = self.s.author # ID for the author of the object
@@ -64,56 +67,36 @@ class Post(WPEntity):
 			raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
 	
 	@property
-	def categories(self):
-		'''
-		Returns a list of categories assigned to this post as 'Category' objects.
-		'''
-		categories = list()
-		
-		cr = self.api.CategoryRequest()
-		for category_id in self.s.categories:
-			cr.id = category_id
-			category_list = cr.get()
-			if len(category_list) > 0:
-				categories.append(category_list[0])
-		return categories
-		
-	@property
-	def category_names(self):
-		'''
-		Returns a list of category names as strings, not Category objects.
-		'''
-		return [c.s.name for c in self.categories]
-	
-	@property
 	def comments(self):
 		'''
-		Returns a list of comments assigned to this post as 'Comment' objects.
+		Returns the comments associated with this post.
 		'''
-		comments = list()
-		
-		cr = self.api.CommentRequest()
-		cr.post = self.s.id
-		comment_data = cr.get()
-		if len(comment_data) > 0:
-			return comment_data
-		else:
-			return list()
-	
+		return self.api.CommentRequest(post=self).get()
 
 class PostRequest(WPRequest):
 	'''
 	A class that encapsulates requests for WordPress posts.
 	'''		
-	def __init__(self, api=None):		
+	def __init__(self, api=None, categories=None, slugs=None):		
 		super().__init__(api=api)
 		self.id = None # WordPress ID
-
+		
 		# parameters that undergo validation, i.e. need custom setter
 		#self._author = None
+		self._after = None
+		self._before = None
 		self._order = None
 		self._orderby = None
-		self._status = None
+		
+		self._status = list()
+		self._author_ids = list()
+		self._category_ids = list()
+		self._slugs = list()
+		
+		if categories:
+			self.categories = categories
+		if slugs:
+			self.slugs = slugs
 		
 	@property
 	def parameter_names(self):
@@ -142,12 +125,34 @@ class PostRequest(WPRequest):
 		else:
 			request_context = "view" # default value
 			
-		if self._status:
+		if self.page:
+			self.parameters["page"] = self.page
+		
+		if self.per_page:
+			self.parameters["per_page"] = self.per_page
+
+		if self.search:
+			self.parameters["search"] = self.search
+			
+		if self.after:
+			self.parameters["after"] = self._after.isoformat()
+
+		if len(self.author) > 0:
+			# takes a list of author IDs
+			self.parameters["author"] = ",".join(self.author)
+		
+		if len(self.status) > 0:
 			self.parameters["status"] = ",".join(self.status)
 			
 		if self.slug:
 			self.parameters["slug"] = self.slug
 		
+		if len(self.categories) > 0:
+			self.parameters["categories"] = ",".join(self._category_ids)
+		
+		if self.order:
+			self.parameters["order"] = self.order
+					
 		# -------------------
 
 		try:
@@ -189,22 +194,22 @@ class PostRequest(WPRequest):
 				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
 										"content", "comment_status", "ping_status", "format", "meta",
 										"sticky", "template", "categories", "tags"]
-#				for key in view_edit_properties:
-#					setattr(post, key, d[key])
-				post.s.date_gmt = d["date_gmt"]
-				post.s.guid = d["guid"]
-				post.s.modified = d["modified"]
-				post.s.modified_gmt = d["modified_gmt"]
-				post.s.status = d["status"]
-				post.s.content = d["content"]["rendered"]
-				post.s.comment_status = d["comment_status"]
-				post.s.ping_status = d["ping_status"]
-				post.s.format = d["format"]
-				post.s.meta = d["meta"]
-				post.s.sticky = d["sticky"]
-				post.s.template = d["template"]
-				post.s.categories = d["categories"]
-				post.s.tags = d["tags"]
+				for key in view_edit_properties:
+					setattr(post, key, d[key])
+#				post.s.date_gmt = d["date_gmt"]
+#				post.s.guid = d["guid"]
+#				post.s.modified = d["modified"]
+#				post.s.modified_gmt = d["modified_gmt"]
+#				post.s.status = d["status"]
+#				post.s.content = d["content"]
+#				post.s.comment_status = d["comment_status"]
+#				post.s.ping_status = d["ping_status"]
+#				post.s.format = d["format"]
+#				post.s.meta = d["meta"]
+#				post.s.sticky = d["sticky"]
+#				post.s.template = d["template"]
+#				post.s.categories = d["categories"]
+#				post.s.tags = d["tags"]
 				
 			# Properties applicable to only 'edit' query contexts
 			#
@@ -236,6 +241,7 @@ class PostRequest(WPRequest):
 	@context.setter
 	def context(self, value):
 		if value is None:
+			self.parameters.pop("context", None)
 			self._context =  None
 			return
 		else:
@@ -251,38 +257,98 @@ class PostRequest(WPRequest):
 	@property
 	def author(self):
 		#return self._author
-		return self.parameters.get("author", None)
+		#return self.parameters.get("author", None)
+		return self._author_ids
 		
 	@author.setter
 	def author(self, value):
-		''' Set author parameter for this request; stores WordPress user ID. '''
+		'''
+		Set author parameter for this request; stores WordPress user ID.
+		'''
+		author_id = None
+		
 		if value is None:
 			self.parameters.pop("author", None) # remove key
-			self.g = None
+			return
+			#self.g = None
 
 		elif isinstance(value, User):
-			self.parameters["author"] = value.s.id
-			#self._author = value.id
+			# a single user was given, replace any existing list with this one
+			self._author_ids = list()
+			author_id = value.s.id
 
 		elif isinstance(value, int):
-			self.parameters["author"] = value # assuming WordPress ID
+			# a single id was given, replace any existing list with this one
+			self._author_ids = list()
+			author_id = value # assuming WordPress ID
+			#self.parameters["author"] = value
 			#self._author = value
 
 		elif isinstance(value, str):
 			# is this string value the WordPress user ID?
 			try:
-				self.parameters["author"] = int(value)
+				author_id = int(value)
 			except ValueError:
-				pass
-			# is this string value the WordPress username? If so, try to get the User object
-			user = self.api.user(username=value) # raises exception
-			self.parameters["author"] = user.s.id
-			#self._author = user
+				# nope, see if it's the username and get the User object
+				try:
+					user = self.api.user(username=value)
+					author_id = user.s.id
+				except exc.NoEntityFound:
+					raise ValueError("Could not determine a user from the value: {0} (type {1})".format(value, type(value)))
 							
 		else:
 			raise ValueError("Unexpected value type passed to 'author' (type: '{1}')".format(type(value)))
+		
+		assert author_id is not None, "could not determine author_id from value {0}".format(value)
+		#self.parameters["author"].append(str(author_id))
+		self._author_ids.append(author_id)
 
+	@property
+	def after(self):
+		'''
+		WordPress parameter to return posts after this date.
+		'''
+		return self._after
 	
+	@after.setter
+	def after(self, value):
+		'''
+		Set the WordPress parameter to return posts after this date.
+		'''
+		# The stored format is a datetime object, even though WordPress requires
+		# it to be ISO-8601.
+		#
+		if value is None:
+			self.parameters.pop("after", None)
+			self._after = None
+		elif isinstance(value, datetime):
+			self._after = value
+		else:
+			raise ValueError("Th 'after' property only accepts `datetime` objects.")
+
+	@property
+	def before(self):
+		'''
+		WordPress parameter to return posts before this date.
+		'''
+		return self._after
+	
+	@after.setter
+	def before(self, value):
+		'''
+		Set the WordPress parameter to return posts before this date.
+		'''
+		# The stored format is a datetime object, even though WordPress requires
+		# it to be ISO-8601.
+		#
+		if value is None:
+			self.parameters.pop("before", None)
+			self._before = None
+		elif isinstance(value, datetime):
+			self._before = value
+		else:
+			raise ValueError("The 'before' property only accepts `datetime` objects.")
+
 	@property
 	def order(self):
 		return self._order;
@@ -291,6 +357,7 @@ class PostRequest(WPRequest):
 	@order.setter
 	def order(self, value):
 		if value is None:
+			self.parameters.pop("order", None)
 			self._order = None
 		else:
 			if isinstance(value, str):
@@ -313,6 +380,7 @@ class PostRequest(WPRequest):
 	@orderby.setter
 	def orderby(self, value):
 		if value is None:
+			self.parameters.pop("orderby", None)
 			self._orderby = None
 		else:
 			if isinstance(value, str):
@@ -340,7 +408,8 @@ class PostRequest(WPRequest):
 		Ref: https://developer.wordpress.org/rest-api/reference/posts/#arguments
 		'''
 		if value is None:
-			self._status = None # set default value
+			self.parameters.pop("status", None)
+			self._status = list() # set default value
 			return
 		try:
 			value = value.lower()
@@ -354,3 +423,91 @@ class PostRequest(WPRequest):
 		except:
 			pass
 		raise ValueError("'status' must be one of ['draft', 'pending', 'private', 'publish', 'future'] ('{0}' given)".format(value))
+		
+	@property
+	def categories(self):
+		return self._category_ids
+
+	@categories.setter
+	def categories(self, values):
+		'''
+		This method validates the categories passed to this request.
+		
+		It accepts category ID (integer or string) or the slug value.
+		'''
+		if values is None:
+			self.parameters.pop("categories", None)
+			self._category_ids = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Categories must be provided as a list (or append to the existing list).")
+		
+		for c in values:
+			cat_id = None
+			if isinstance(c, Category):
+				cat_id = c.s.id
+#				self._category_ids.append(str(c.s.id))
+			elif isinstance(c, int):
+#				self._category_ids.append(str(c))
+				cat_id = c
+			elif isinstance(c, str):
+				try:
+					# is this a category ID value?
+					cat_id = int(c)
+					#self._category_ids.append(str(int(c)))
+				except ValueError:
+					# not a category ID value, try by slug?
+					try:
+						category = self.api.category(slug=c)
+						cat_id = category.s.id
+						#self._category_ids.append(category.s.id)
+					except exc.NoEntityFound:
+						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
+			
+			# Categories are stored as string ID values.
+			#
+			self._category_ids.append(str(cat_id))
+
+	@property
+	def slugs(self):
+		'''
+		The list of post slugs to retrieve.
+		'''
+		return self._slugs
+		
+	@slugs.setter
+	def slugs(self, values):
+		if values is None:
+			self.parameters.pop("slugs", None)
+			self._slugs = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Slugs must be provided as a list (or append to the existing list).")
+		
+		for s in values:
+			if isinstance(s, str):
+				self._slugs.append(s)
+			else:
+				raise ValueError("Unexpected type for property list 'slugs'; expected str, got '{0}'".format(type(s)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
