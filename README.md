@@ -12,7 +12,7 @@ This is a work in progress! The most significant feature not yet implemented is 
 
 ## Examples
 
-##### Connecting to the API
+#### Connecting to the API
 
 Create an object that contains connection information to the WordPress site. All interaction will occur through this `wordpress_orm.API` object.
 
@@ -25,7 +25,7 @@ api = wp.API(url="https://demo.wp-api.org/wp-json/")
 
 The Python objects (e.g.available properties) are closely tied to the WordPress API; keeping the [reference page](https://developer.wordpress.org/rest-api/reference/) open as you code will be handy.
 
-##### Retrieving Posts
+#### Retrieving Posts
 
 Use the `PostRequest` object to retrieve posts from the API. Below we create a new `PostRquest` directly from the `api` object (which contains the connection information). We will retrieve all posts from the category "News" by specifying the slug for that category ('news').
 
@@ -46,7 +46,7 @@ post_request.order = "desc"
 posts = post_request.get()
 ```
 
-##### Accessing Entity Elements
+#### Accessing Entity Elements
 
 `wordpress_orm` defines Python classes for each WordPress entity: `Post`, `PostRevision`, `Category`, `Tag`, `Page`, `Comment`, `Taxonomy`, `Media`, `User`, `PostType`, `PostStatus`, `Setting`. The WordPress API defines a schema for each entity. For example, the [posts schema](https://developer.wordpress.org/rest-api/reference/posts/#schema) defines `title`, `author`, and `category`. 
 
@@ -75,7 +75,60 @@ This is the reason for the `s` property: it keeps the WordPress schema propertie
 >>> post.s.categories
 [1,6]
 >>> post.categories
-<WP Category 
+[<WP Category object at 0x7fd6932cd780 name='Blog'>, <WP Category object at 0x7fd6932cdb70 name='News'>]
+>>> [cat.s.name for cat in post.categories]
+['Blog', 'News']
+```
+
+#### Direct Access to Entities
+
+For simple access to known entities, sometimes the search request objects are more than you need. For example, if you already know the ID of a particular post, the API provides an interface to instantiate it directly:
+
+```
+post12 = api.post(id=12)
+```
+
+These methods always return a single object. Entities can be retrieved by different (limited) properties:
+
+```
+post_vineger_review = api.post(slug='vinegar-review')
+blog_category = api.category(slug='blog')
+news_category = api.category(id=4)
+```
+
+#### HTTP Session Reuse
+
+It is apparent that by calling a related property from an entity (e.g. `post.comments`) requires one or more trips to the server. The overhead of opening and closing numerous connections can get "expensive". The `wordpress_orm` provides a way to take advantage of reusing a `requests` session from within a [context manager](http://docs.python-requests.org/en/master/user/advanced/#session-objects):
+
+```
+import wordpress_orm
+from wordpress_orm import wp_session
+
+api = wp.API(url="https://demo.wp-api.org/wp-json/")
+with wp_session(api):
+	post12 = api.post(id=12)
+	# perform all queries inside this block
+	
+# work with data here after the shared session is closed
+```
+
+#### Exception Handling
+
+`wordpress_orm` provides a few custom exceptions for error handling.
+
+```
+import wordpress_orm
+try:
+	post12 = api.post(id=12)
+except wordpress_orm.exc.NoEntityFound:
+	# handle post not found
+```
+
+```
+try:
+	post12 = api.post(id=12)
+except wordpress_orm.exc.AuthenticationRequired:
+	# not yet supported, coming soon!
 ```
 
 ## Caveats

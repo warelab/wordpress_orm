@@ -27,7 +27,10 @@ class API:
 	def __init__(self, url=None):
 		self.base_url = url
 		self.session = None
-		
+	
+	def __repr__(self):
+		return "<WP {0} object at {1} base='{2}'>".format(self.__class__.__name__, hex(id(self)), self.base_url)
+	
 	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
 		return post.PostRequest(api=self, **kwargs)

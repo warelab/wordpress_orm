@@ -72,6 +72,20 @@ class Post(WPEntity):
 		Returns the comments associated with this post.
 		'''
 		return self.api.CommentRequest(post=self).get()
+	
+	@property
+	def categories(self):
+		'''
+		Returns a list of categories (as Category objects) associated with this post.
+		'''
+		categories = list()
+		for category_id in self.s.categories:
+			try:
+				categories.append(self.api.category(id=category_id))
+			except exc.NoEntityFound:
+				logger.debug("Expected to find category ID={0} from post (ID={1}), but no category found.".format(category_id, self.s.id))
+		return categories
+	
 
 class PostRequest(WPRequest):
 	'''
@@ -148,7 +162,7 @@ class PostRequest(WPRequest):
 			self.parameters["slug"] = self.slug
 		
 		if len(self.categories) > 0:
-			self.parameters["categories"] = ",".join(self._category_ids)
+			self.parameters["categories"] = ",".join(self.categories)
 		
 		if self.order:
 			self.parameters["order"] = self.order
@@ -195,7 +209,7 @@ class PostRequest(WPRequest):
 										"content", "comment_status", "ping_status", "format", "meta",
 										"sticky", "template", "categories", "tags"]
 				for key in view_edit_properties:
-					setattr(post, key, d[key])
+					setattr(post.s, key, d[key])
 #				post.s.date_gmt = d["date_gmt"]
 #				post.s.guid = d["guid"]
 #				post.s.modified = d["modified"]
@@ -218,7 +232,6 @@ class PostRequest(WPRequest):
 			
 			# Properties applicable to only 'view' query contexts
 			#
-			print(d["title"])
 			if request_context == 'view':
 				post.s.title = d["title"]["rendered"]
 			else:

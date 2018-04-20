@@ -23,9 +23,9 @@ class WPEntity(metaclass=ABCMeta):
 		if api is None:
 			raise Exception("Use the 'API.{0}()' method to create a new '{0}' object.".format(self.__class__.__name__))
 		
-		self.api = api
-		self.json = None
-		self.s = WPSchema()
+		self.api = api		# holds the connection information
+		self.json = None	# holds the raw JSON returned from the API
+		self.s = WPSchema()	# an empty object to use to hold custom properties
 		
 		# define the schema properties for the WPSchema object
 		for field in self.schema_fields:

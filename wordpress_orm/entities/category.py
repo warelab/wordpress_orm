@@ -23,7 +23,7 @@ class Category(WPEntity):
 		super().__init__(api=api)
 		
 	def __repr__(self):
-		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.name)
+		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.s.name)
 	
 	@property
 	def schema_fields(self):
