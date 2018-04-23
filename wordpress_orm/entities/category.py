@@ -21,6 +21,9 @@ class Category(WPEntity):
 	
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
+	
+		# cache related objects
+		self._posts = None
 		
 	def __repr__(self):
 		return "<WP {0} object at {1} name='{2}'>".format(self.__class__.__name__, hex(id(self)), self.s.name)
@@ -73,10 +76,11 @@ class Category(WPEntity):
 		'''
 		Return a list of posts (type: Post) that have this category.
 		'''
-		pr = self.api.PostRequest()
-		pr.categories.append(self)
-		posts = pr.get()
-		return posts
+		if self._posts is None:
+			pr = self.api.PostRequest()
+			pr.categories.append(self)
+			self._posts = pr.get()
+		return self._posts
 
 
 class CategoryRequest(WPRequest):

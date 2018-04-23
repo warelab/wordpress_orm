@@ -22,6 +22,9 @@ class Comment(WPEntity):
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
 	
+		# cache related objects
+		self._author = None
+	
 	def __repr__(self):
 		if len(self.s.content) < 11:
 			truncated_content = self.s.content
@@ -40,16 +43,15 @@ class Comment(WPEntity):
 		'''
 		Return the WordPress User object that wrote this comment, if it was a WP User, None otherwise.
 		'''
-		if self.author:
+		if self._author is None:
 			ur = self.api.UserRequest()
-			ur.id = self.author # 'author' field is user ID
+			ur.id = self.s.author # 'author' field is user ID
 			users = ur.get()
 			if len(users) > 0:
-				return users[0]
+				self._author = users[0]
 			else:
-				return None
-		else:
-			return None
+				self._author = None
+		return self._author
 
 class CommentRequest(WPRequest):
 	'''

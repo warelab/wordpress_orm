@@ -12,6 +12,7 @@ from datetime import datetime
 from .wordpress_entity import WPEntity, WPRequest, context_values
 from .user import User
 from .category import Category
+
 from .. import exc
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
@@ -24,6 +25,12 @@ class Post(WPEntity):
 
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
+		
+		# related objects to cache
+		self._author = None
+		self._featured_media = None
+		self._comments = None
+		self._categories = None
 			
 	def __repr__(self):
 		if len(self.s.title) < 11:
@@ -45,46 +52,57 @@ class Post(WPEntity):
 		'''
 		Returns the 'Media' object that is the "featured media" for this post.
 		'''
-		mr = self.api.MediaRequest()
-		mr.id = self.s.featured_media
-		media_list = mr.get()
-		if len(media_list) == 1:
-			return media_list[0]
-		else:
-			return None
+		if self._featured_media is None:
+			mr = self.api.MediaRequest()
+			mr.id = self.s.featured_media
+			media_list = mr.get()
+			if len(media_list) == 1:
+				self._featured_media = media_list[0]
+			else:
+				self._featured_media = None
+		return self._featured_media
 			
 	@property
 	def author(self):
 		'''
 		Returns the author of this post, class: 'User'.
 		'''
-		ur = self.api.UserRequest()
-		ur.id = self.s.author # ID for the author of the object
-		user_list = ur.get()
-		if len(user_list) == 1:
-			return user_list[0]
-		else:
-			raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+		if self._author is None:
+			ur = self.api.UserRequest()
+			ur.id = self.s.author # ID for the author of the object
+			user_list = ur.get()
+			if len(user_list) == 1:
+				self._author = user_list[0]
+			else:
+				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+		return self._author
 	
 	@property
 	def comments(self):
 		'''
 		Returns the comments associated with this post.
 		'''
-		return self.api.CommentRequest(post=self).get()
+		if self._comments is None:
+			self._comments = self.api.CommentRequest(post=self).get()
+		return self._comments
 	
 	@property
 	def categories(self):
 		'''
 		Returns a list of categories (as Category objects) associated with this post.
 		'''
-		categories = list()
-		for category_id in self.s.categories:
-			try:
-				categories.append(self.api.category(id=category_id))
-			except exc.NoEntityFound:
-				logger.debug("Expected to find category ID={0} from post (ID={1}), but no category found.".format(category_id, self.s.id))
-		return categories
+		if self._categories is None:
+			self._categories = list()
+			for category_id in self.s.categories:
+				try:
+					self._categories.append(self.api.category(id=category_id))
+				except exc.NoEntityFound:
+					logger.debug("Expected to find category ID={0} from post (ID={1}), but no category found.".format(category_id, self.s.id))
+		return self._categories
+	
+	@property
+	def category_names(self):
+		return [x.s.name for x in self.categories]
 	
 
 class PostRequest(WPRequest):
@@ -205,25 +223,25 @@ class PostRequest(WPRequest):
 			# Properties applicable to only 'view', 'edit' query contexts:
 			#
 			if request_context in ["view", "edit"]:
-				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
-										"content", "comment_status", "ping_status", "format", "meta",
-										"sticky", "template", "categories", "tags"]
-				for key in view_edit_properties:
-					setattr(post.s, key, d[key])
-#				post.s.date_gmt = d["date_gmt"]
-#				post.s.guid = d["guid"]
-#				post.s.modified = d["modified"]
-#				post.s.modified_gmt = d["modified_gmt"]
-#				post.s.status = d["status"]
-#				post.s.content = d["content"]
-#				post.s.comment_status = d["comment_status"]
-#				post.s.ping_status = d["ping_status"]
-#				post.s.format = d["format"]
-#				post.s.meta = d["meta"]
-#				post.s.sticky = d["sticky"]
-#				post.s.template = d["template"]
-#				post.s.categories = d["categories"]
-#				post.s.tags = d["tags"]
+#				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
+#										"content", "comment_status", "ping_status", "format", "meta",
+#										"sticky", "template", "categories", "tags"]
+#				for key in view_edit_properties:
+#					setattr(post.s, key, d[key])
+				post.s.date_gmt = d["date_gmt"]
+				post.s.guid = d["guid"]
+				post.s.modified = d["modified"]
+				post.s.modified_gmt = d["modified_gmt"]
+				post.s.status = d["status"]
+				post.s.content = d["content"]["rendered"]
+				post.s.comment_status = d["comment_status"]
+				post.s.ping_status = d["ping_status"]
+				post.s.format = d["format"]
+				post.s.meta = d["meta"]
+				post.s.sticky = d["sticky"]
+				post.s.template = d["template"]
+				post.s.categories = d["categories"]
+				post.s.tags = d["tags"]
 				
 			# Properties applicable to only 'edit' query contexts
 			#

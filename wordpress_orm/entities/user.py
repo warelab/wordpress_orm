@@ -18,6 +18,9 @@ class User(WPEntity):
 		# parameters that undergo validation, i.e. need custom setter
 		self._context = None
 
+		# cache related objects
+		self._posts = None
+
 	@property
 	def schema_fields(self):
 		return ["id", "username", "name", "first_name", "last_name", "email", "url",
@@ -26,10 +29,11 @@ class User(WPEntity):
 
 	@property
 	def posts(self):
-		pr = self.api.PostRequest()
-		pr.author = self
-		posts = pr.get()
-		return posts	
+		if self._posts is None:
+			pr = self.api.PostRequest()
+			pr.author = self
+			self._posts = pr.get()
+		return self._posts
 
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, name='{3}'>".format(self.__class__.__name__, hex(id(self)), self.s.id, self.s.name)
