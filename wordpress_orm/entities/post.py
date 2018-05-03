@@ -292,7 +292,7 @@ class PostRequest(WPRequest):
 		'''
 		Current page of the collection.
 		'''
-		return self._per_page
+		return self._page
 		
 	@page.setter
 	def page(self, value):

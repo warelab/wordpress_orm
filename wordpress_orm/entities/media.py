@@ -22,7 +22,7 @@ class Media(WPEntity):
 
 		# related objects to cache
 		self._author = None
-		self._associated_post
+		self._associated_post = None
 			
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
@@ -249,7 +249,7 @@ class MediaRequest(WPRequest):
 		'''
 		Current page of the collection.
 		'''
-		return self._per_page
+		return self._page
 		
 	@page.setter
 	def page(self, value):
