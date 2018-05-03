@@ -119,6 +119,8 @@ class PostRequest(WPRequest):
 		self._before = None
 		self._order = None
 		self._orderby = None
+		self._page = None
+		self._per_page = None
 		
 		self._status = list()
 		self._author_ids = list()
@@ -284,6 +286,45 @@ class PostRequest(WPRequest):
 			except:
 				pass
 			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
+	
+	@property
+	def page(self):
+		'''
+		Current page of the collection.
+		'''
+		return self._per_page
+		
+	@page.setter
+	def page(self, value):
+		#
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._page = value
+		elif isinstance(value, str):
+			try:
+				self._page = int(value)
+			except ValueError:
+				raise ValueError("The 'page' parameter must be an integer, was given '{0}'".format(value))
+
+	@property
+	def per_page(self):
+		'''
+		Maximum number of items to be returned in result set.
+		'''
+		return self._per_page
+		
+	@per_page.setter
+	def per_page(self, value):
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._per_page = value
+		elif isinstance(value, str):
+			try:
+				self._per_page = int(value)
+			except ValueError:
+				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
 	
 	@property
 	def author(self):

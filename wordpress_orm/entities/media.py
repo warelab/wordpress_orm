@@ -19,6 +19,10 @@ class Media(WPEntity):
 	
 	def __init__(self, id=None, api=None):
 		super().__init__(api=api)
+
+		# related objects to cache
+		self._author = None
+		self._associated_post
 			
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
@@ -32,6 +36,43 @@ class Media(WPEntity):
 			    "slug", "status", "type", "title", "author", "comment_status",
 			    "ping_status", "meta", "template", "alt_text", "caption", "description",
 			    "media_type", "mime_type", "media_details", "post", "source_url"]
+
+	@property
+	def media_type(self):
+		'''
+		The media type, one of ["image", "file"].
+		'''
+		return self.s.media_type
+	
+	@property
+	def author(self):
+		'''
+		Returns the author of this post, class: 'User'.
+		'''
+		if self._author is None:
+			ur = self.api.UserRequest()
+			ur.id = self.s.author # ID for the author of the object
+			user_list = ur.get()
+			if len(user_list) == 1:
+				self._author = user_list[0]
+			else:
+				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+		return self._author
+	
+	@property
+	def post(self):
+		'''
+		The post associated with this media item.
+		'''
+		if self._associated_post is None:
+			pr = self.api.PostRequest()
+			pr.id = self.s.featured_media
+			posts = pr.get()
+			if len(media_list) == 1:
+				self._associated_post = posts[0]
+			else:
+				self._associated_post = None
+		return self._associated_post
 	
 
 class MediaRequest(WPRequest):
@@ -45,6 +86,8 @@ class MediaRequest(WPRequest):
 		# parameters that undergo validation, i.e. need custom setter
 		# default values set here
 		self._context = None #"view"
+		self._page = None
+		self._per_page = None
 
 	@property
 	def parameter_names(self):
@@ -61,15 +104,74 @@ class MediaRequest(WPRequest):
 		
 		logger.debug("URL='{}'".format(self.url))
 
-		# set parameters
+		# -------------------
+		# populate parameters
+		# -------------------
 		if self.context:
 			self.parameters["context"] = self.context
 			request_context = self.context
 		else:
 			request_context = "view" # default value
+
+		if self.page:
+			self.parameters["page"] = self.page
+
+		if self.per_page:
+			self.parameters["per_page"] = self.per_page
+
+		if self.search:
+			assert False, "Field 'search' not yet implemented."
+
+		if self.after:
+			assert False, "Field 'after' not yet implemented."
+
+		if self.author:
+			assert False, "Field 'author' not yet implemented."
+
+		if self.author_exclude:
+			assert False, "Field 'author_exclude' not yet implemented."
+
+		if self.before:
+			assert False, "Field 'before' not yet implemented."
+
+		if self.exclude:
+			assert False, "Field 'exclude' not yet implemented."
+
+		if self.include:
+			assert False, "Field 'include' not yet implemented."
+
+		if self.offset:
+			assert False, "Field 'offset' not yet implemented."
+
+		if self.order:
+			assert False, "Field 'order' not yet implemented."
+
+		if self.orderby:
+			assert False, "Field 'orderby' not yet implemented."
+
+		if self.parent:
+			assert False, "Field 'parent' not yet implemented."
+
+		if self.parent_exclude:
+			assert False, "Field 'parent_exclude' not yet implemented."
+
+		if self.slug:
+			self.parameters["slug"] = self.slug
+
+		if self.status:
+			assert False, "Field 'status' not yet implemented."
+
+		if self.media_type:
+			assert False, "Field 'media_type' not yet implemented."
+
+		if self.mime_type:
+			assert False, "Field 'mime_type' not yet implemented."
 		
+		# -------------------
+
 		try:
 			self.get_response()
+			logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
 			logger.debug("Media response code: {}".format(self.response.status_code))
 			if self.response.status_code == 404:
@@ -86,7 +188,8 @@ class MediaRequest(WPRequest):
 		media_objects = list()
 		for d in media_data:
 			media = Media(api=self.api)
-
+			media.json = d
+			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
 			#logger.debug(d)
@@ -98,7 +201,7 @@ class MediaRequest(WPRequest):
 			media.s.title = d["title"]
 			media.s.author = d["author"]
 			media.s.alt_text = d["alt_text"]
-			media.s.caption = d["caption"]
+			media.s.caption = d["caption"]["rendered"]
 			media.s.media_type = d["media_type"]
 			media.s.mime_type = d["mime_type"]
 			media.s.media_details = d["media_details"]
@@ -116,7 +219,7 @@ class MediaRequest(WPRequest):
 				media.s.ping_status = d["ping_status"]
 				media.s.meta = d["meta"]
 				media.s.template = d["template"]
-				media.s.description = d["description"]
+				media.s.description = d["description"]["rendered"]
 				media.s.post = d["post"]
 				
 			media_objects.append(media)
@@ -141,6 +244,44 @@ class MediaRequest(WPRequest):
 				pass
 			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
 
+	@property
+	def page(self):
+		'''
+		Current page of the collection.
+		'''
+		return self._per_page
+		
+	@page.setter
+	def page(self, value):
+		#
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._page = value
+		elif isinstance(value, str):
+			try:
+				self._page = int(value)
+			except ValueError:
+				raise ValueError("The 'page' parameter must be an integer, was given '{0}'".format(value))
+
+	@property
+	def per_page(self):
+		'''
+		Maximum number of items to be returned in result set.
+		'''
+		return self._per_page
+		
+	@per_page.setter
+	def per_page(self, value):
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._per_page = value
+		elif isinstance(value, str):
+			try:
+				self._per_page = int(value)
+			except ValueError:
+				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
 
 	
 

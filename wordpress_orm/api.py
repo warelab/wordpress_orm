@@ -66,15 +66,20 @@ class API:
 		''' Factory method that returns a new MediaRequest attached to this API. '''
 		return media.MediaRequest(api=self, **kwargs)
 
-	def media(self, id=None):
+	def media(self, id=None, slug=None):
 		'''
 		Returns a Media object from the WordPress API with the provided ID.
 		
 		id : WordPress ID
 		'''
+		if len([x for x in [id, slug] if x is not None]) > 1:
+			raise Exception("Only one of [id, slug] can be specified at a time.")
+
 		mr = media.MediaRequest(api=self)
-		if id is not None:
+		if id:
 			mr.id = id
+		elif slug:
+			mr.slug = slug
 
 		media_list = mr.get()
 
@@ -84,6 +89,7 @@ class API:
 			raise exc.NoEntityFound()
 		else:
 			# more than one found
+			logger.debug(media_list)
 			assert False, "Should not get here!"
 	
 	def user(self, id=None, username=None, slug=None):
