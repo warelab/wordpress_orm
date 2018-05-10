@@ -161,7 +161,10 @@ class PostRequest(WPRequest):
 			self.parameters["context"] = self.context
 			request_context = self.context
 		else:
-			request_context = "view" # default value
+			if count:
+				request_context = "embed" # only counting results, this is a shorter response
+			else:
+				request_context = "view" # default value
 			
 		if self.page:
 			self.parameters["page"] = self.page
