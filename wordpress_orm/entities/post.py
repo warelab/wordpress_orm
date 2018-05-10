@@ -125,6 +125,7 @@ class PostRequest(WPRequest):
 		self._status = list()
 		self._author_ids = list()
 		self._category_ids = list()
+		self._categories_exclude_ids = list()
 		self._slugs = list()
 		
 		if categories:
@@ -190,6 +191,9 @@ class PostRequest(WPRequest):
 		
 		if len(self.categories) > 0:
 			self.parameters["categories"] = ",".join(self.categories)
+		
+		if len(self.categories_exclude) > 0:
+			self.parameters["categories_exclude"] = ",".join(self.categories)
 		
 		if self.order:
 			self.parameters["order"] = self.order
@@ -549,6 +553,50 @@ class PostRequest(WPRequest):
 			# Categories are stored as string ID values.
 			#
 			self._category_ids.append(str(cat_id))
+
+	@property
+	def categories_exclude(self):
+		return self._category_exclude_ids
+
+	@categories.setter
+	def categories_exclude(self, values):
+		'''
+		This method validates the categories passed to this request.
+		
+		It accepts category ID (integer or string) or the slug value.
+		'''
+		if values is None:
+			self.parameters.pop("categories", None)
+			self._category_exclude_ids = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Categories must be provided as a list (or append to the existing list).")
+		
+		for c in values:
+			cat_id = None
+			if isinstance(c, Category):
+				cat_id = c.s.id
+#				self._category_exclude_ids.append(str(c.s.id))
+			elif isinstance(c, int):
+#				self._category_exclude_ids.append(str(c))
+				cat_id = c
+			elif isinstance(c, str):
+				try:
+					# is this a category ID value?
+					cat_id = int(c)
+					#self._category_exclude_ids.append(str(int(c)))
+				except ValueError:
+					# not a category ID value, try by slug?
+					try:
+						category = self.api.category(slug=c)
+						cat_id = category.s.id
+						#self._category_exclude_ids.append(category.s.id)
+					except exc.NoEntityFound:
+						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
+			
+			# Categories are stored as string ID values.
+			#
+			self._category_exclude_ids.append(str(cat_id))
 
 	@property
 	def slugs(self):
