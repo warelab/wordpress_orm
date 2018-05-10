@@ -135,15 +135,19 @@ class PostRequest(WPRequest):
 	@property
 	def parameter_names(self):
 		'''
+		Post request parameters.
 		'''
 		return ["context", "page", "per_page", "search", "after", "author",
 				"author_exclude", "before", "exclude", "include", "offset",
 				"order", "orderby", "slug", "status", "categories",
 				"categories_exclude", "tags", "tags_exclude", "sticky"]
 
-	def get(self):
+	def get(self, count=False):
 		'''
 		Returns a list of 'Post' objects that match the parameters set in this object.
+		
+		count : Boolean, if True, only returns the number of object found.
+		
 		'''
 		self.url = self.api.base_url + "posts"
 		
@@ -199,12 +203,15 @@ class PostRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
-			
+		
 		posts_data = self.response.json()
 
 		if isinstance(posts_data, dict):
 			# only one object was returned; make it a list
 			posts_data = [posts_data]
+	
+		if count:
+			return len(posts_data)
 	
 		posts = list()
 		for d in posts_data:
