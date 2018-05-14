@@ -193,7 +193,7 @@ class PostRequest(WPRequest):
 			self.parameters["categories"] = ",".join(self.categories)
 		
 		if len(self.categories_exclude) > 0:
-			self.parameters["categories_exclude"] = ",".join(self.categories)
+			self.parameters["categories_exclude"] = ",".join(self.categories_exclude)
 		
 		if self.order:
 			self.parameters["order"] = self.order
@@ -526,7 +526,7 @@ class PostRequest(WPRequest):
 			self._category_ids = list()
 			return
 		elif not isinstance(values, list):
-			raise ValueError("Categories must be provided as a list (or append to the existing list).")
+			raise ValueError("Categories must be provided as a list (or append to the existing list, or None).")
 		
 		for c in values:
 			cat_id = None
@@ -556,21 +556,22 @@ class PostRequest(WPRequest):
 
 	@property
 	def categories_exclude(self):
+		logger.debug("GET categories_exclude: {0}".format(self._category_exclude_ids))
 		return self._category_exclude_ids
 
-	@categories.setter
+	@categories_exclude.setter
 	def categories_exclude(self, values):
 		'''
-		This method validates the categories passed to this request.
+		This method validates the categories_exclude passed to this request.
 		
 		It accepts category ID (integer or string) or the slug value.
 		'''
 		if values is None:
-			self.parameters.pop("categories", None)
+			self.parameters.pop("categories_exclude", None)
 			self._category_exclude_ids = list()
 			return
 		elif not isinstance(values, list):
-			raise ValueError("Categories must be provided as a list (or append to the existing list).")
+			raise ValueError("categories_exclude must be provided as a list (or append to the existing list, or None).")
 		
 		for c in values:
 			cat_id = None
