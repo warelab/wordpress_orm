@@ -27,6 +27,17 @@ class API:
 	def __init__(self, url=None):
 		self.base_url = url
 		self.session = None
+		
+		self.wordpress_object_cache = dict() # key = class name, value = object
+		#
+		# individual caches
+		# each class has two key that can be accessed (i.e. appears twice in dictionary)
+		#		key = WP id as string, value = object
+		#       key = slug, value = object
+		#
+		for key in ["User", "Category", "Media", "Page", "PostRevision", "PostStatus",
+					"PostType", "Post", "Settings", "Tag", "Taxonomy", "User"]:
+			self.wordpress_object_cache[key] = dict()
 	
 	def __repr__(self):
 		return "<WP {0} object at {1} base='{2}'>".format(self.__class__.__name__, hex(id(self)), self.base_url)
@@ -44,8 +55,18 @@ class API:
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
 		
+		# check cache first
+		try:
+			if id:
+				post = self.wordpress_object_cache["Post"][str(id)]
+			elif slug:
+				post = self.wordpress_object_cache["Post"][slug]
+			logger.debug("Post cache hit")
+			return post
+		except KeyError:
+			pass # not found, fetch below
 		
-		pr = post.PostRequest(api=self)
+		pr = self.PostRequest(api=self)
 		if id is not None:
 			pr.id = id
 		
@@ -64,7 +85,7 @@ class API:
 	
 	def MediaRequest(self, **kwargs):
 		''' Factory method that returns a new MediaRequest attached to this API. '''
-		return media.MediaRequest(api=self, **kwargs)
+		return media.MediaRequest(api=kwargs.pop('api', self), **kwargs)
 
 	def media(self, id=None, slug=None):
 		'''
@@ -74,8 +95,22 @@ class API:
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
+		elif any([id, slug]) is False:
+			raise Exception("At least one of 'id' or 'slug' must be specified.")
 
-		mr = media.MediaRequest(api=self)
+		# check cache first
+		try:
+			if id:
+				media = self.wordpress_object_cache["Media"][str(id)]
+			elif slug:
+				media = self.wordpress_object_cache["Media"][slug]
+			logger.debug("Media cache hit")
+			return media
+		except KeyError:
+			logger.debug("Media cache fail")
+			pass # not found, fetch below
+
+		mr = self.MediaRequest(api=self)
 		if id:
 			mr.id = id
 		elif slug:
@@ -101,7 +136,7 @@ class API:
 		if len([x for x in [id, username, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, username, slug] can be specified at a time.")
 
-		ur = user.UserRequest(api=self)
+		ur = self.UserRequest(api=self)
 		if id:
 			ur.id = id
 		elif username:
@@ -133,7 +168,7 @@ class API:
 		if len([x for x in [id, slug, name] if x is not None]) > 1:
 			raise Exception("Only one of 'id', 'slug', 'name' can be specified.")
 		
-		cr = category.CategoryRequest(api=self)
+		cr = self.CategoryRequest(api=self)
 
 		if id:
 			cr.id = id
@@ -151,7 +186,7 @@ class API:
 
 	def CategoryRequest(self, **kwargs):
 		''' Factory method that returns a new CategoryRequest attached to this API. '''
-		return category.CategoryRequest(api=self, **kwargs)
+		return category.CategoryRequest(api=kwargs.pop('api', self), **kwargs)
 
 	def comment(self, id=None):
 		'''
@@ -160,7 +195,7 @@ class API:
 		if id is None:
 			raise Exception("A comment 'id' must be specified.")
 			
-			cr = comment.CommentRequest(api=self)
+			cr = self.CommentRequest(api=self)
 			
 			if id:
 				cr.id = id

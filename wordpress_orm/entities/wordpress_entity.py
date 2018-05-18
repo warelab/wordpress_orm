@@ -72,6 +72,8 @@ class WPRequest(metaclass=ABCMeta):
 	def get_response(self):
 		if self.response is None:
 			if self.api.session is None:
+				print("creating new request")
+				# no exiting request, create a new one
 				self.response = requests.get(url=self.url, params=self.parameters)
 			else:
 				# use existing session

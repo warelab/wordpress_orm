@@ -107,8 +107,8 @@ class CommentRequest(WPRequest):
 		# -------------------
 
 		try:
-			self.get_response()
 			logger.debug("URL='{}'".format(self.request.url))
+			self.get_response()
 		except requests.exceptions.HTTPError:
 			logger.debug("Post response code: {}".format(self.response.status_code))
 			if self.response.status_code == 400: # bad request

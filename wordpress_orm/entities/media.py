@@ -82,7 +82,7 @@ class MediaRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.id = None # WordPress id
-	
+		
 		# parameters that undergo validation, i.e. need custom setter
 		# default values set here
 		self._context = None #"view"
@@ -102,7 +102,7 @@ class MediaRequest(WPRequest):
 		if self.id:
 			self.url += "/{}".format(self.id)
 		
-		logger.debug("URL='{}'".format(self.url))
+#		logger.debug("URL='{}'".format(self.url))
 
 		# -------------------
 		# populate parameters
@@ -173,7 +173,7 @@ class MediaRequest(WPRequest):
 			self.get_response()
 			logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
-			logger.debug("Media response code: {}".format(self.response.status_code))
+			logger.debug("HTTP error! media response code: {}".format(self.response.status_code))
 			if self.response.status_code == 404:
 				return None
 			elif self.response.status_code == 404:
@@ -221,6 +221,10 @@ class MediaRequest(WPRequest):
 				media.s.template = d["template"]
 				media.s.description = d["description"]["rendered"]
 				media.s.post = d["post"]
+				
+			# add to cache
+			self.api.wordpress_object_cache["Media"][media.s.id] = media
+			self.api.wordpress_object_cache["Media"][media.s.slug] = media
 				
 			media_objects.append(media)
 		

@@ -53,13 +53,17 @@ class Post(WPEntity):
 		Returns the 'Media' object that is the "featured media" for this post.
 		'''
 		if self._featured_media is None:
-			mr = self.api.MediaRequest()
-			mr.id = self.s.featured_media
-			media_list = mr.get()
-			if len(media_list) == 1:
-				self._featured_media = media_list[0]
-			else:
-				self._featured_media = None
+		
+			found_media = self.api.media(id=self.s.featured_media)
+			self._featured_media = found_media
+		
+#			mr = self.api.MediaRequest()
+#			mr.id = self.s.featured_media
+#			media_list = mr.get()
+#			if len(media_list) == 1:
+#				self._featured_media = media_list[0]
+#			else:
+#				self._featured_media = None
 		return self._featured_media
 			
 	@property
@@ -112,6 +116,10 @@ class PostRequest(WPRequest):
 	def __init__(self, api=None, categories=None, slugs=None):		
 		super().__init__(api=api)
 		self.id = None # WordPress ID
+		
+		# values read from the response header
+		self.total = None
+		self.total_pages = None
 		
 		# parameters that undergo validation, i.e. need custom setter
 		#self._author = None
@@ -211,6 +219,10 @@ class PostRequest(WPRequest):
 			elif self.response.status_code == 404: # not found
 				return None
 		
+		# read response headers
+		self.total = self.response.headers['X-WP-Total']
+		self.total_pages = self.response.headers['X-WP-TotalPages']
+
 		posts_data = self.response.json()
 
 		if isinstance(posts_data, dict):
@@ -222,6 +234,16 @@ class PostRequest(WPRequest):
 	
 		posts = list()
 		for d in posts_data:
+		
+			# Before we continue, do we have this Post in the cache already?
+			try:
+				post = self.api.wordpress_object_cache["Post"][d["id"]]
+				posts.append(post)
+				continue
+			except KeyError:
+				# nope, carry on
+				post = None
+			
 			post = Post(api=self.api)
 			post.json = d
 			
@@ -274,6 +296,10 @@ class PostRequest(WPRequest):
 				logger.debug(d["title"])
 				logger.debug(request_context)
 				raise NotImplementedError
+		
+			# add to cache
+			self.api.wordpress_object_cache["Post"][post.s.id] = post
+			self.api.wordpress_object_cache["Post"][post.s.slug] = post
 			
 			posts.append(post)
 			
@@ -556,7 +582,6 @@ class PostRequest(WPRequest):
 
 	@property
 	def categories_exclude(self):
-		logger.debug("GET categories_exclude: {0}".format(self._category_exclude_ids))
 		return self._category_exclude_ids
 
 	@categories_exclude.setter
