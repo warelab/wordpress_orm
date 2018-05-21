@@ -14,6 +14,7 @@ from .user import User
 from .category import Category
 
 from .. import exc
+from ..cache import WPORMCacheObjectNotFoundError
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -237,11 +238,10 @@ class PostRequest(WPRequest):
 		
 			# Before we continue, do we have this Post in the cache already?
 			try:
-				post = self.api.wordpress_object_cache["Post"][d["id"]]
+				post = self.api.wordpress_object_cache.get(class_name=Post.__name__, key=d["id"])
 				posts.append(post)
 				continue
-			except KeyError:
-				# nope, carry on
+			except WPORMCacheObjectNotFoundError:
 				pass
 			
 			post = Post(api=self.api)
@@ -298,8 +298,8 @@ class PostRequest(WPRequest):
 				raise NotImplementedError
 		
 			# add to cache
-			self.api.wordpress_object_cache["Post"][post.s.id] = post
-			self.api.wordpress_object_cache["Post"][post.s.slug] = post
+			self.api.wordpress_object_cache.set(class_name=Post.__name__, key=post.s.id, value=post)
+			self.api.wordpress_object_cache.set(class_name=Post.__name__, key=post.s.slug, value=post)
 			
 			posts.append(post)
 			

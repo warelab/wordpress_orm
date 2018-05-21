@@ -7,6 +7,7 @@ import logging
 import requests
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
+from ..cache import WPORMCacheObjectNotFoundError
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -160,11 +161,10 @@ class UserRequest(WPRequest):
 
 			# Before we continue, do we have this User in the cache already?
 			try:
-				user = self.api.wordpress_object_cache["User"][d["id"]]
+				user = self.api.wordpress_object_cache.get(class_name=User.__name__, key=d["id"])
 				users.append(user)
 				continue
-			except KeyError:
-				# nope, carry on
+			except WPORMCacheObjectNotFoundError:
 				pass
 
 			user = User(api=self.api)
@@ -202,8 +202,8 @@ class UserRequest(WPRequest):
 				user.s.extra_capabilities = d["extra_capabilities"]
 			
 			# add to cache
-			self.api.wordpress_object_cache["User"][user.s.id] = user
-			self.api.wordpress_object_cache["User"][user.s.slug] = user
+			self.api.wordpress_object_cache.set(class_name=User.__name__, key=user.s.id, value=user)
+			self.api.wordpress_object_cache.set(class_name=User.__name__, key=user.s.slug, value=user)
 
 			users.append(user)
 

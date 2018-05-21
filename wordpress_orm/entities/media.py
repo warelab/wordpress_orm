@@ -10,6 +10,7 @@ import logging
 import requests
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
+from ..cache import WPORMCache, WPORMCacheObjectNotFoundError
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -190,11 +191,10 @@ class MediaRequest(WPRequest):
 
 			# Before we continue, do we have this Media in the cache already?
 			try:
-				media = self.api.wordpress_object_cache["Media"][d["id"]]
+				media = self.api.wordpress_object_cache.get(class_name=Media.__name__, key=d["id"])
 				media_objects.append(media)
 				continue
-			except KeyError:
-				# nope, carry on
+			except WPORMCacheObjectNotFoundError:
 				pass
 
 			media = Media(api=self.api)
@@ -233,8 +233,8 @@ class MediaRequest(WPRequest):
 				media.s.post = d["post"]
 				
 			# add to cache
-			self.api.wordpress_object_cache["Media"][media.s.id] = media
-			self.api.wordpress_object_cache["Media"][media.s.slug] = media
+			self.api.wordpress_object_cache.set(class_name=Media.__name__, key=media.s.id, value=media)
+			self.api.wordpress_object_cache.set(class_name=Media.__name__, key=media.s.slug, value=media)
 				
 			media_objects.append(media)
 		

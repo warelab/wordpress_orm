@@ -11,6 +11,7 @@ import requests
 from .wordpress_entity import WPEntity, WPRequest, context_values
 #from .post import PostRequest
 from ..import exc
+from ..cache import WPORMCacheObjectNotFoundError
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -146,11 +147,10 @@ class CategoryRequest(WPRequest):
 			
 			# Before we continue, do we have this Category in the cache already?
 			try:
-				category = self.api.wordpress_object_cache["Category"][d["id"]]
+				category = self.api.wordpress_object_cache.get(Category.__name__, key=d["id"])
 				categories.append(category)
 				continue
-			except KeyError:
-				# nope, carry on
+			except WPORMCacheObjectNotFoundError:
 				pass
 
 			category = Category(api=self.api)
@@ -173,8 +173,8 @@ class CategoryRequest(WPRequest):
 				category.s.meta = d["meta"]
 			
 			# add to cache
-			self.api.wordpress_object_cache["Category"][category.s.id] = category
-			self.api.wordpress_object_cache["Category"][category.s.slug] = category
+			self.api.wordpress_object_cache.set(class_name=Category.__name__, key=category.s.id, value=category)
+			self.api.wordpress_object_cache.set(class_name=Category.__name__, key=category.s.slug, value=category)
 
 			categories.append(category)
 		

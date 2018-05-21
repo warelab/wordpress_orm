@@ -9,6 +9,7 @@ import requests
 from .wordpress_entity import WPEntity, WPRequest, context_values
 from .post import Post
 from ..import exc
+from ..cache import WPORMCacheObjectNotFoundError
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -128,11 +129,10 @@ class CommentRequest(WPRequest):
 
 			# Before we continue, do we have this Comment in the cache already?
 			try:
-				comment = self.api.wordpress_object_cache["Comment"][d["id"]]
+				comment = self.api.wordpress_object_cache.get(class_name=Comment.__name__, key=d["id"])
 				comments.append(comment)
 				continue
-			except KeyError:
-				# nope, carry on
+			except WPORMCacheObjectNotFoundError:
 				pass
 
 			comment = Comment(api=self.api)
@@ -168,8 +168,8 @@ class CommentRequest(WPRequest):
 				comment.s.author_user_agent = d["author_user_agent"]
 
 			# add to cache
-			self.api.wordpress_object_cache["Comment"][comment.s.id] = comment
-			self.api.wordpress_object_cache["Comment"][comment.s.slug] = comment
+			self.api.wordpress_object_cache.set(class_name=Comment.__name__, key=comment.s.id, value=comment)
+			self.api.wordpress_object_cache.set(class_name=Comment.__name__, key=comment.s.slug, value=comment)
 
 			comments.append(comment)
 		

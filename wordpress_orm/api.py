@@ -1,8 +1,4 @@
 
-#from .entities.post import Post, PostRequest
-#from .entities.media import Media, MediaRequest
-#from .entities.user import User, UserRequest
-
 import logging
 from contextlib import contextmanager
 
@@ -10,6 +6,20 @@ import requests
 
 from .entities import post, user, media, category, comment
 from . import exc
+from .cache import WPORMCache, WPORMCacheObjectNotFoundError
+
+from .entities import Category
+from .entities import Comment
+from .entities import Media
+#from .entities import Page
+#from .entities import PostRevision
+#from .entities import PostStatus
+#from .entities import PostType
+from .entities import Post
+#from .entities import Settings
+#from .entities import Tag
+#from .entities import Taxonomy
+from .entities import User
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
@@ -28,23 +38,33 @@ class API:
 		self.base_url = url
 		self.session = None
 		
-		self.wordpress_object_cache = dict() # key = class name, value = object
+		self.wordpress_object_cache = WPORMCache() # dict() # key = class name, value = object
 		#
 		# individual caches
 		# each class has two key that can be accessed (i.e. appears twice in dictionary)
 		#		key = WP id as string, value = object
 		#       key = slug, value = object
 		#
-		for key in ["User", "Category", "Media", "Page", "PostRevision", "PostStatus",
-					"PostType", "Post", "Settings", "Tag", "Taxonomy", "User"]:
-			self.wordpress_object_cache[key] = dict()
+		#for custom_class in [Category, Comment, Post, User]:
+		#	self.register_custom_class(custom_class)
+		#	#self.wordpress_object_cache[key] = dict()
 	
 	def __repr__(self):
 		return "<WP {0} object at {1} base='{2}'>".format(self.__class__.__name__, hex(id(self)), self.base_url)
+
+	def register_custom_class(self, theclass):
+		'''
+		Register a custom subclass of WPEntity with the API.
+		'''
+		# set up cache dictionary
+		assert False, "finish code"
+#		class_name = theclass.__name__
+#		if class_name not in self.wordpress_object_cache:
+#			self.wordpress_object_cache[class_name] = dict()
 	
 	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
-		return post.PostRequest(api=self, **kwargs)
+		return post.PostRequest(api=kwargs.pop('api', self), **kwargs)
 
 	def post(self, id=None, slug=None):
 		'''
@@ -58,12 +78,12 @@ class API:
 		# check cache first
 		try:
 			if id:
-				post = self.wordpress_object_cache["Post"][str(id)]
+				post = self.wordpress_object_cache.get(class_name=Post.__name__, key=str(id))
 			elif slug:
-				post = self.wordpress_object_cache["Post"][slug]
-			logger.debug("Post cache hit")
+				post = self.wordpress_object_cache.get(class_name=Post.__name__, key=slug)
+			logger.debug("Post cache hit {0}".format(post.s.slug))
 			return post
-		except KeyError:
+		except WPORMCacheObjectNotFoundError:
 			pass # not found, fetch below
 		
 		pr = self.PostRequest(api=self)
@@ -101,12 +121,12 @@ class API:
 		# check cache first
 		try:
 			if id:
-				media = self.wordpress_object_cache["Media"][str(id)]
+				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=str(id))
 			elif slug:
-				media = self.wordpress_object_cache["Media"][slug]
-			logger.debug("Media cache hit")
+				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=slug)
+			logger.debug("Media cache hit ({0})".format(media.s.slug))
 			return media
-		except KeyError:
+		except WPORMCacheObjectNotFoundError:
 			#logger.debug("Media cache fail")
 			pass # not found, fetch below
 
@@ -141,12 +161,12 @@ class API:
 		# check cache first
 		try:
 			if id:
-				user = self.wordpress_object_cache["User"][str(id)]
+				user = self.wordpress_object_cache.get(class_name=User.__name__, key=str(id))
 			elif slug:
-				user = self.wordpress_object_cache["User"][slug]
-			logger.debug("User cache hit")
+				user = self.wordpress_object_cache.get(class_name=User.__name__, key=slug)
+			logger.debug("User cache hit ({0})".format(user.s.username))
 			return user
-		except KeyError:
+		except WPORMCacheObjectNotFoundError:
 			#logger.debug("User cache fail")
 			pass # not found, fetch below
 
@@ -171,7 +191,7 @@ class API:
 
 	def UserRequest(self, **kwargs):
 		''' Factory method that returns a new UserRequest attached to this API. '''
-		return user.UserRequest(api=self, **kwargs)
+		return user.UserRequest(api=kwargs.pop('api', self), **kwargs)
 		
 	def category(self, id=None, slug=None, name=None):
 		'''
@@ -185,12 +205,12 @@ class API:
 		# check cache first
 		try:
 			if id:
-				category = self.wordpress_object_cache["Category"][str(id)]
+				category = self.wordpress_object_cache.get(class_name=Category.__name__, key=str(id))
 			elif slug:
-				category = self.wordpress_object_cache["Category"][slug]
-			logger.debug("Category cache hit")
+				category = self.wordpress_object_cache.get(class_name=Category.__name__, key=slug)
+			logger.debug("Category cache hit ({0})".format(category.s.name))
 			return category
-		except KeyError:
+		except WPORMCacheObjectNotFoundError:
 			#logger.debug("Category cache fail")
 			pass # not found, fetch below
 
@@ -224,12 +244,12 @@ class API:
 		# check cache first
 		try:
 			if id:
-				comment = self.wordpress_object_cache["Comment"][str(id)]
+				comment = self.wordpress_object_cache.get(class_name=Comment.__name__, key=str(id))
 			elif slug:
-				comment = self.wordpress_object_cache["Comment"][slug]
+				comment = self.wordpress_object_cache.get(class_name=Comment.__name__, key=slug)
 			logger.debug("Comment cache hit")
 			return comment
-		except KeyError:
+		except WPORMCacheObjectNotFoundError:
 			#logger.debug("Comment cache fail")
 			pass # not found, fetch below
 
@@ -249,7 +269,7 @@ class API:
 
 	def CommentRequest(self, **kwargs):
 		''' Factory method that returns a new CommentRequest attached to this API. '''
-		return comment.CommentRequest(api=self, **kwargs)
+		return comment.CommentRequest(api=kwargs.pop('api', self), **kwargs)
 
 
 
