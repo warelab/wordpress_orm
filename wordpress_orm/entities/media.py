@@ -187,6 +187,16 @@ class MediaRequest(WPRequest):
 
 		media_objects = list()
 		for d in media_data:
+
+			# Before we continue, do we have this Media in the cache already?
+			try:
+				media = self.api.wordpress_object_cache["Media"][d["id"]]
+				media_objects.append(media)
+				continue
+			except KeyError:
+				# nope, carry on
+				pass
+
 			media = Media(api=self.api)
 			media.json = d
 			

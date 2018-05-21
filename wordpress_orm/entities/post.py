@@ -242,7 +242,7 @@ class PostRequest(WPRequest):
 				continue
 			except KeyError:
 				# nope, carry on
-				post = None
+				pass
 			
 			post = Post(api=self.api)
 			post.json = d

@@ -143,7 +143,16 @@ class CategoryRequest(WPRequest):
 			
 		categories = list()
 		for d in categories_data:
-			#print(d)
+			
+			# Before we continue, do we have this Category in the cache already?
+			try:
+				category = self.api.wordpress_object_cache["Category"][d["id"]]
+				categories.append(category)
+				continue
+			except KeyError:
+				# nope, carry on
+				pass
+
 			category = Category(api=self.api)
 			category.json = d
 			
@@ -163,6 +172,10 @@ class CategoryRequest(WPRequest):
 				category.s.parent = d["parent"]
 				category.s.meta = d["meta"]
 			
+			# add to cache
+			self.api.wordpress_object_cache["Category"][category.s.id] = category
+			self.api.wordpress_object_cache["Category"][category.s.slug] = category
+
 			categories.append(category)
 		
 		return categories

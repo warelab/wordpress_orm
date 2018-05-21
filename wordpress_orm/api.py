@@ -107,7 +107,7 @@ class API:
 			logger.debug("Media cache hit")
 			return media
 		except KeyError:
-			logger.debug("Media cache fail")
+			#logger.debug("Media cache fail")
 			pass # not found, fetch below
 
 		mr = self.MediaRequest(api=self)
@@ -135,6 +135,20 @@ class API:
 		'''
 		if len([x for x in [id, username, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, username, slug] can be specified at a time.")
+		if (any[id, slug]) is False:
+			raise Exception("At least one of 'id' or 'slug' must be specified.")
+
+		# check cache first
+		try:
+			if id:
+				user = self.wordpress_object_cache["User"][str(id)]
+			elif slug:
+				user = self.wordpress_object_cache["User"][slug]
+			logger.debug("User cache hit")
+			return user
+		except KeyError:
+			#logger.debug("User cache fail")
+			pass # not found, fetch below
 
 		ur = self.UserRequest(api=self)
 		if id:
@@ -168,6 +182,18 @@ class API:
 		if len([x for x in [id, slug, name] if x is not None]) > 1:
 			raise Exception("Only one of 'id', 'slug', 'name' can be specified.")
 		
+		# check cache first
+		try:
+			if id:
+				category = self.wordpress_object_cache["Category"][str(id)]
+			elif slug:
+				category = self.wordpress_object_cache["Category"][slug]
+			logger.debug("Category cache hit")
+			return category
+		except KeyError:
+			#logger.debug("Category cache fail")
+			pass # not found, fetch below
+
 		cr = self.CategoryRequest(api=self)
 
 		if id:
@@ -195,19 +221,31 @@ class API:
 		if id is None:
 			raise Exception("A comment 'id' must be specified.")
 			
-			cr = self.CommentRequest(api=self)
-			
+		# check cache first
+		try:
 			if id:
-				cr.id = id
-			
-			comments = cr.get()
-			if len(comments) == 1:
-				return comments[0]
-			elif len(comments) == 0:
-				raise exc.NoEntityFound()
-			else:
-				# more than one found
-				assert False, "Should not get here!"
+				comment = self.wordpress_object_cache["Comment"][str(id)]
+			elif slug:
+				comment = self.wordpress_object_cache["Comment"][slug]
+			logger.debug("Comment cache hit")
+			return comment
+		except KeyError:
+			#logger.debug("Comment cache fail")
+			pass # not found, fetch below
+
+		cr = self.CommentRequest(api=self)
+		
+		if id:
+			cr.id = id
+		
+		comments = cr.get()
+		if len(comments) == 1:
+			return comments[0]
+		elif len(comments) == 0:
+			raise exc.NoEntityFound()
+		else:
+			# more than one found
+			assert False, "Should not get here!"
 
 	def CommentRequest(self, **kwargs):
 		''' Factory method that returns a new CommentRequest attached to this API. '''

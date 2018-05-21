@@ -125,6 +125,16 @@ class CommentRequest(WPRequest):
 			
 		comments = list()
 		for d in comments_data:
+
+			# Before we continue, do we have this Comment in the cache already?
+			try:
+				comment = self.api.wordpress_object_cache["Comment"][d["id"]]
+				comments.append(comment)
+				continue
+			except KeyError:
+				# nope, carry on
+				pass
+
 			comment = Comment(api=self.api)
 			comment.json = d
 			
@@ -156,6 +166,10 @@ class CommentRequest(WPRequest):
 				comment.s.author_email = d["author_email"]
 				comment.s.author_ip = d["author_ip"]
 				comment.s.author_user_agent = d["author_user_agent"]
+
+			# add to cache
+			self.api.wordpress_object_cache["Comment"][comment.s.id] = comment
+			self.api.wordpress_object_cache["Comment"][comment.s.slug] = comment
 
 			comments.append(comment)
 		

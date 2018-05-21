@@ -157,6 +157,16 @@ class UserRequest(WPRequest):
 	
 		users = list()
 		for d in users_data:
+
+			# Before we continue, do we have this User in the cache already?
+			try:
+				user = self.api.wordpress_object_cache["User"][d["id"]]
+				users.append(user)
+				continue
+			except KeyError:
+				# nope, carry on
+				pass
+
 			user = User(api=self.api)
 			user.json = d
 			
@@ -191,6 +201,10 @@ class UserRequest(WPRequest):
 				user.s.capabilities = d["capabilities"]
 				user.s.extra_capabilities = d["extra_capabilities"]
 			
+			# add to cache
+			self.api.wordpress_object_cache["User"][user.s.id] = user
+			self.api.wordpress_object_cache["User"][user.s.slug] = user
+
 			users.append(user)
 
 		return users
