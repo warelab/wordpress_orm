@@ -115,15 +115,17 @@ class API:
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
-		elif any([id, slug]) is False:
+		elif id is None and slug is None:
+			# be careful of id=0 case
 			raise Exception("At least one of 'id' or 'slug' must be specified.")
 
 		# check cache first
 		try:
-			if id:
+			if id is not None: # id could be zero
 				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=str(id))
-			elif slug:
+			elif slug is not None:
 				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=slug)
+			print(id, slug)
 			logger.debug("Media cache hit ({0})".format(media.s.slug))
 			return media
 		except WPORMCacheObjectNotFoundError:
