@@ -4,20 +4,20 @@ from contextlib import contextmanager
 
 import requests
 
-from .entities import post, user, media, category, comment
+from .entities import post, user, media, category, comment, page, tag
 from . import exc
 from .cache import WPORMCache, WPORMCacheObjectNotFoundError
 
 from .entities import Category
 from .entities import Comment
 from .entities import Media
-#from .entities import Page
+from .entities import Page
 #from .entities import PostRevision
 #from .entities import PostStatus
 #from .entities import PostType
 from .entities import Post
 #from .entities import Settings
-#from .entities import Tag
+from .entities import Tag
 #from .entities import Taxonomy
 from .entities import User
 
@@ -32,23 +32,25 @@ def wp_session(api=None):
 
 class API:
 	'''
-	
+
 	'''
 	def __init__(self, url=None):
 		self.base_url = url
 		self.session = None
-		
+
 		self.wordpress_object_cache = WPORMCache() # dict() # key = class name, value = object
+
 		#
 		# individual caches
 		# each class has two key that can be accessed (i.e. appears twice in dictionary)
 		#		key = WP id as string, value = object
 		#       key = slug, value = object
 		#
+
 		#for custom_class in [Category, Comment, Post, User]:
 		#	self.register_custom_class(custom_class)
 		#	#self.wordpress_object_cache[key] = dict()
-	
+
 	def __repr__(self):
 		return "<WP {0} object at {1} base='{2}'>".format(self.__class__.__name__, hex(id(self)), self.base_url)
 
@@ -61,7 +63,8 @@ class API:
 #		class_name = theclass.__name__
 #		if class_name not in self.wordpress_object_cache:
 #			self.wordpress_object_cache[class_name] = dict()
-	
+
+
 	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
 		return post.PostRequest(api=kwargs.pop('api', self), **kwargs)
@@ -69,12 +72,12 @@ class API:
 	def post(self, id=None, slug=None):
 		'''
 		Returns a Post object from the WordPress API with the provided ID.
-		
+
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
-		
+
 		# check cache first
 		try:
 			if id:
@@ -85,16 +88,16 @@ class API:
 			return post
 		except WPORMCacheObjectNotFoundError:
 			pass # not found, fetch below
-		
+
 		pr = self.PostRequest(api=self)
 		if id is not None:
 			pr.id = id
-		
+
 		if slug:
 			pr.slug = slug
-			
+
 		posts = pr.get()
-		
+
 		if len(posts) == 1:
 			return posts[0]
 		elif len(posts) == 0:
@@ -102,7 +105,7 @@ class API:
 		else:
 			# more than one found
 			assert False, "Should not get here!"
-	
+
 	def MediaRequest(self, **kwargs):
 		''' Factory method that returns a new MediaRequest attached to this API. '''
 		return media.MediaRequest(api=kwargs.pop('api', self), **kwargs)
@@ -110,7 +113,7 @@ class API:
 	def media(self, id=None, slug=None):
 		'''
 		Returns a Media object from the WordPress API with the provided ID.
-		
+
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
@@ -148,11 +151,11 @@ class API:
 			# more than one found
 			logger.debug(media_list)
 			assert False, "Should not get here!"
-	
+
 	def user(self, id=None, username=None, slug=None):
 		'''
 		Returns a User object from the WordPress API with the provided ID.
-		
+
 		id : WordPress ID
 		'''
 		if len([x for x in [id, username, slug] if x is not None]) > 1:
@@ -193,17 +196,18 @@ class API:
 
 	def UserRequest(self, **kwargs):
 		''' Factory method that returns a new UserRequest attached to this API. '''
+
 		return user.UserRequest(api=kwargs.pop('api', self), **kwargs)
-		
+
 	def category(self, id=None, slug=None, name=None):
 		'''
 		Returns a Category object from the WordPress API by ID, slug, or name.
-		
+
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug, name] if x is not None]) > 1:
 			raise Exception("Only one of 'id', 'slug', 'name' can be specified.")
-		
+
 		# check cache first
 		try:
 			if id:
@@ -242,7 +246,7 @@ class API:
 		'''
 		if id is None:
 			raise Exception("A comment 'id' must be specified.")
-			
+
 		# check cache first
 		try:
 			if id:
@@ -256,10 +260,10 @@ class API:
 			pass # not found, fetch below
 
 		cr = self.CommentRequest(api=self)
-		
+
 		if id:
 			cr.id = id
-		
+
 		comments = cr.get()
 		if len(comments) == 1:
 			return comments[0]
@@ -273,9 +277,84 @@ class API:
 		''' Factory method that returns a new CommentRequest attached to this API. '''
 		return comment.CommentRequest(api=kwargs.pop('api', self), **kwargs)
 
+	def PageRequest(self, **kwargs):
+		''' Factory method that returns a new PageRequest attached to this API. '''
+		return page.PageRequest(api=kwargs.pop('api', self), **kwargs)
 
+	def page(self, id=None, slug=None):
+		'''
+		Returns a Page object from the WordPress API with the provided ID.
 
+		id : WordPress ID
+		'''
+		if len([x for x in [id, slug] if x is not None]) > 1:
+			raise Exception("Only one of [id, slug] can be specified at a time.")
 
+		# check cache first
+		try:
+			if id:
+				page = self.wordpress_object_cache.get(class_name=Page.__name__, key=str(id))
+			elif slug:
+				page = self.wordpress_object_cache.get(class_name=Page.__name__, key=slug)
+			logger.debug("Page cache hit {0}".format(page.s.slug))
+			return page
+		except WPORMCacheObjectNotFoundError:
+			pass # not found, fetch below
 
+		par = self.PageRequest(api=self)
+		if id is not None:
+			par.id = id
 
+		if slug:
+			par.slug = slug
 
+		pages = par.get()
+
+		if len(pages) == 1:
+			return pages[0]
+		elif len(pages) == 0:
+			raise exc.NoEntityFound()
+		else:
+			# more than one found
+			assert False, "Should not get here!"
+
+	def TagRequest(self, **kwargs):
+		''' Factory method that returns a new TagRequest attached to this API. '''
+		return tag.TagRequest(api=kwargs.pop('api', self), **kwargs)
+
+	def tag(self, id=None, slug=None):
+		'''
+		Returns a Tag object from the WordPress API with the provided ID.
+
+		id : WordPress ID
+		'''
+		if len([x for x in [id, slug] if x is not None]) > 1:
+			raise Exception("Only one of [id, slug] can be specified at a time.")
+
+		# check cache first
+		try:
+			if id:
+				tag = self.wordpress_object_cache.get(class_name=Tag.__name__, key=str(id))
+			elif slug:
+				tag = self.wordpress_object_cache.get(class_name=Tag.__name__, key=slug)
+			logger.debug("Post cache hit {0}".format(tag.s.slug))
+			return tag
+		except WPORMCacheObjectNotFoundError:
+			pass # not found, fetch below
+
+		tr = self.TagRequest(api=self)
+		if id is not None:
+			tr.id = id
+
+		if slug:
+			tr.slug = slug
+
+		tags = tr.get()
+
+		if len(tags) == 1:
+			return tags[0]
+		elif len(tags) == 0:
+			raise exc.NoEntityFound()
+		else:
+			# more than one found
+			assert False, "Should not get here!"
