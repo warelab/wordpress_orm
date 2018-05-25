@@ -202,7 +202,7 @@ class UserRequest(WPRequest):
 				user.s.extra_capabilities = d["extra_capabilities"]
 			
 			# add to cache
-			self.api.wordpress_object_cache.set(class_name=User.__name__, key=user.s.id, value=user)
+			self.api.wordpress_object_cache.set(class_name=User.__name__, key=str(user.s.id), value=user)
 			self.api.wordpress_object_cache.set(class_name=User.__name__, key=user.s.slug, value=user)
 
 			users.append(user)

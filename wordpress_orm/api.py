@@ -77,6 +77,9 @@ class API:
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
+		if not any([id, slug]):
+			# none in list are defined
+			raise Exception("At least one of 'id' or 'slug' must be specified.")
 
 		# check cache first
 		try:
@@ -128,7 +131,6 @@ class API:
 				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=str(id))
 			elif slug is not None:
 				media = self.wordpress_object_cache.get(class_name=Media.__name__, key=slug)
-			print(id, slug)
 			logger.debug("Media cache hit ({0})".format(media.s.slug))
 			return media
 		except WPORMCacheObjectNotFoundError:
@@ -159,8 +161,10 @@ class API:
 		id : WordPress ID
 		'''
 		if len([x for x in [id, username, slug] if x is not None]) > 1:
+			# more than one in list is defined
 			raise Exception("Only one of [id, username, slug] can be specified at a time.")
-		if (any[id, slug]) is False:
+		if not any([id, slug]):
+			# none in list are defined
 			raise Exception("At least one of 'id' or 'slug' must be specified.")
 
 		# check cache first
@@ -169,7 +173,7 @@ class API:
 				user = self.wordpress_object_cache.get(class_name=User.__name__, key=str(id))
 			elif slug:
 				user = self.wordpress_object_cache.get(class_name=User.__name__, key=slug)
-			logger.debug("User cache hit ({0})".format(user.s.username))
+			#logger.debug("User cache hit ({0})".format(user.s.username))
 			return user
 		except WPORMCacheObjectNotFoundError:
 			#logger.debug("User cache fail")
@@ -206,7 +210,10 @@ class API:
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug, name] if x is not None]) > 1:
+			# more than one in list is defined
 			raise Exception("Only one of 'id', 'slug', 'name' can be specified.")
+		if not any([id, slug, name]):
+			raise Exception("At least one of 'id', 'name', or 'slug' must be specified.")
 
 		# check cache first
 		try:
@@ -214,7 +221,7 @@ class API:
 				category = self.wordpress_object_cache.get(class_name=Category.__name__, key=str(id))
 			elif slug:
 				category = self.wordpress_object_cache.get(class_name=Category.__name__, key=slug)
-			logger.debug("Category cache hit ({0})".format(category.s.name))
+			#logger.debug("Category cache hit ({0})".format(category.s.name))
 			return category
 		except WPORMCacheObjectNotFoundError:
 			#logger.debug("Category cache fail")
@@ -289,7 +296,10 @@ class API:
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
 			raise Exception("Only one of [id, slug] can be specified at a time.")
-
+		if not any([id, slug]):
+			# none in list are defined
+			raise Exception("At least one of 'id' or 'slug' must be specified.")
+		
 		# check cache first
 		try:
 			if id:
@@ -329,7 +339,11 @@ class API:
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
+			# more than one are defined
 			raise Exception("Only one of [id, slug] can be specified at a time.")
+		if not any([id, slug]):
+			# none in list are defined
+			raise Exception("At least one of 'id' or 'slug' must be specified.")
 
 		# check cache first
 		try:

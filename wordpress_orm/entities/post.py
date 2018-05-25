@@ -1,4 +1,4 @@
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 '''
 
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
@@ -12,7 +12,6 @@ from datetime import datetime
 from .wordpress_entity import WPEntity, WPRequest, context_values
 from .user import User
 from .category import Category
-from .tag import Tag
 
 from .. import exc
 from ..cache import WPORMCacheObjectNotFoundError
@@ -27,13 +26,13 @@ class Post(WPEntity):
 
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
-
+		
 		# related objects to cache
 		self._author = None
 		self._featured_media = None
 		self._comments = None
 		self._categories = None
-
+			
 	def __repr__(self):
 		if len(self.s.title) < 11:
 			truncated_title = self.s.title
@@ -55,10 +54,10 @@ class Post(WPEntity):
 		Returns the 'Media' object that is the "featured media" for this post.
 		'''
 		if self._featured_media is None:
-
+		
 			found_media = self.api.media(id=self.s.featured_media)
 			self._featured_media = found_media
-
+		
 #			mr = self.api.MediaRequest()
 #			mr.id = self.s.featured_media
 #			media_list = mr.get()
@@ -67,22 +66,26 @@ class Post(WPEntity):
 #			else:
 #				self._featured_media = None
 		return self._featured_media
-
+			
 	@property
 	def author(self):
 		'''
 		Returns the author of this post, class: 'User'.
 		'''
 		if self._author is None:
-			ur = self.api.UserRequest()
-			ur.id = self.s.author # ID for the author of the object
-			user_list = ur.get()
-			if len(user_list) == 1:
-				self._author = user_list[0]
-			else:
-				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+			try:
+				self._author = self.api.user(id=self.s.author)  # ID for the author of the object
+			except exc.NoEntityFound:
+ 				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
+# 			ur = self.api.UserRequest()
+# 			ur.id = self.s.author # ID for the author of the object
+# 			user_list = ur.get()
+# 			if len(user_list) == 1:
+# 				self._author = user_list[0]
+# 			else:
+# 				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
 		return self._author
-
+	
 	@property
 	def comments(self):
 		'''
@@ -91,7 +94,7 @@ class Post(WPEntity):
 		if self._comments is None:
 			self._comments = self.api.CommentRequest(post=self).get()
 		return self._comments
-
+	
 	@property
 	def categories(self):
 		'''
@@ -105,47 +108,43 @@ class Post(WPEntity):
 				except exc.NoEntityFound:
 					logger.debug("Expected to find category ID={0} from post (ID={1}), but no category found.".format(category_id, self.s.id))
 		return self._categories
-
+	
 	@property
 	def category_names(self):
 		return [x.s.name for x in self.categories]
-
+	
 
 class PostRequest(WPRequest):
 	'''
 	A class that encapsulates requests for WordPress posts.
-	'''
-	def __init__(self, api=None, categories=None, slugs=None, tags=None):
+	'''		
+	def __init__(self, api=None, categories=None, slugs=None):		
 		super().__init__(api=api)
 		self.id = None # WordPress ID
-
+		
 		# values read from the response header
 		self.total = None
 		self.total_pages = None
-
+		
 		# parameters that undergo validation, i.e. need custom setter
-		#self._author = None
 		self._after = None
 		self._before = None
 		self._order = None
 		self._orderby = None
 		self._page = None
 		self._per_page = None
-
+		
 		self._status = list()
 		self._author_ids = list()
 		self._category_ids = list()
 		self._categories_exclude_ids = list()
 		self._slugs = list()
-		self._tags = list()
-
+		
 		if categories:
 			self.categories = categories
 		if slugs:
 			self.slugs = slugs
-		if tags:
-			self.tags = tags
-
+		
 	@property
 	def parameter_names(self):
 		'''
@@ -159,12 +158,12 @@ class PostRequest(WPRequest):
 	def get(self, count=False):
 		'''
 		Returns a list of 'Post' objects that match the parameters set in this object.
-
+		
 		count : Boolean, if True, only returns the number of object found.
-
+		
 		'''
 		self.url = self.api.base_url + "posts"
-
+		
 		if self.id:
 			self.url += "/{}".format(self.id)
 
@@ -179,41 +178,38 @@ class PostRequest(WPRequest):
 				request_context = "embed" # only counting results, this is a shorter response
 			else:
 				request_context = "view" # default value
-
+			
 		if self.page:
 			self.parameters["page"] = self.page
-
+		
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
 
 		if self.search:
 			self.parameters["search"] = self.search
-
+			
 		if self.after:
 			self.parameters["after"] = self._after.isoformat()
 
 		if len(self.author) > 0:
 			# takes a list of author IDs
 			self.parameters["author"] = ",".join(self.author)
-
+		
 		if len(self.status) > 0:
 			self.parameters["status"] = ",".join(self.status)
-
+			
 		if self.slug:
 			self.parameters["slug"] = self.slug
-
+		
 		if len(self.categories) > 0:
 			self.parameters["categories"] = ",".join(self.categories)
-
+		
 		if len(self.categories_exclude) > 0:
 			self.parameters["categories_exclude"] = ",".join(self.categories_exclude)
-
+		
 		if self.order:
 			self.parameters["order"] = self.order
-
-		if len(self.tags) > 0:
-			self.parameters["tags"] = ",".join(self.tags)
-
+					
 		# -------------------
 
 		try:
@@ -226,7 +222,7 @@ class PostRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
-
+		
 		# read response headers
 		self.total = self.response.headers['X-WP-Total']
 		self.total_pages = self.response.headers['X-WP-TotalPages']
@@ -236,13 +232,13 @@ class PostRequest(WPRequest):
 		if isinstance(posts_data, dict):
 			# only one object was returned; make it a list
 			posts_data = [posts_data]
-
+	
 		if count:
 			return len(posts_data)
-
+	
 		posts = list()
 		for d in posts_data:
-
+		
 			# Before we continue, do we have this Post in the cache already?
 			try:
 				post = self.api.wordpress_object_cache.get(class_name=Post.__name__, key=d["id"])
@@ -250,10 +246,10 @@ class PostRequest(WPRequest):
 				continue
 			except WPORMCacheObjectNotFoundError:
 				pass
-
+			
 			post = Post(api=self.api)
 			post.json = d
-
+			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
 			post.s.date = d["date"]
@@ -264,7 +260,7 @@ class PostRequest(WPRequest):
 			post.s.author = d["author"]
 			post.s.excerpt = d["excerpt"]["rendered"]
 			post.s.featured_media = d["featured_media"]
-
+			
 			# Properties applicable to only 'view', 'edit' query contexts:
 			#
 			if request_context in ["view", "edit"]:
@@ -287,12 +283,12 @@ class PostRequest(WPRequest):
 				post.s.template = d["template"]
 				post.s.categories = d["categories"]
 				post.s.tags = d["tags"]
-
+				
 			# Properties applicable to only 'edit' query contexts
 			#
 			if request_context in ['edit']:
 				post.s.password = d["password"]
-
+			
 			# Properties applicable to only 'view' query contexts
 			#
 			if request_context == 'view':
@@ -303,21 +299,21 @@ class PostRequest(WPRequest):
 				logger.debug(d["title"])
 				logger.debug(request_context)
 				raise NotImplementedError
-
+		
 			# add to cache
 			self.api.wordpress_object_cache.set(class_name=Post.__name__, key=post.s.id, value=post)
 			self.api.wordpress_object_cache.set(class_name=Post.__name__, key=post.s.slug, value=post)
-
+			
 			posts.append(post)
-
+			
 		return posts
-
+	
 	@property
 	def context(self):
 		if self._context is None:
 			self._context = None
 		return self._context
-
+	
 	@context.setter
 	def context(self, value):
 		if value is None:
@@ -333,14 +329,14 @@ class PostRequest(WPRequest):
 			except:
 				pass
 			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
-
+	
 	@property
 	def page(self):
 		'''
 		Current page of the collection.
 		'''
 		return self._page
-
+		
 	@page.setter
 	def page(self, value):
 		#
@@ -360,7 +356,7 @@ class PostRequest(WPRequest):
 		Maximum number of items to be returned in result set.
 		'''
 		return self._per_page
-
+		
 	@per_page.setter
 	def per_page(self, value):
 		# only accept integers or strings that can become integers
@@ -372,20 +368,18 @@ class PostRequest(WPRequest):
 				self._per_page = int(value)
 			except ValueError:
 				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
-
+	
 	@property
 	def author(self):
-		#return self._author
-		#return self.parameters.get("author", None)
 		return self._author_ids
-
+		
 	@author.setter
 	def author(self, value):
 		'''
 		Set author parameter for this request; stores WordPress user ID.
 		'''
 		author_id = None
-
+		
 		if value is None:
 			self.parameters.pop("author", None) # remove key
 			return
@@ -414,10 +408,10 @@ class PostRequest(WPRequest):
 					author_id = user.s.id
 				except exc.NoEntityFound:
 					raise ValueError("Could not determine a user from the value: {0} (type {1})".format(value, type(value)))
-
+							
 		else:
 			raise ValueError("Unexpected value type passed to 'author' (type: '{1}')".format(type(value)))
-
+		
 		assert author_id is not None, "could not determine author_id from value {0}".format(value)
 		#self.parameters["author"].append(str(author_id))
 		self._author_ids.append(author_id)
@@ -428,7 +422,7 @@ class PostRequest(WPRequest):
 		WordPress parameter to return posts after this date.
 		'''
 		return self._after
-
+	
 	@after.setter
 	def after(self, value):
 		'''
@@ -451,7 +445,7 @@ class PostRequest(WPRequest):
 		WordPress parameter to return posts before this date.
 		'''
 		return self._after
-
+	
 	@after.setter
 	def before(self, value):
 		'''
@@ -472,7 +466,7 @@ class PostRequest(WPRequest):
 	def order(self):
 		return self._order;
 		#return self.api_params.get('order', None)
-
+		
 	@order.setter
 	def order(self, value):
 		if value is None:
@@ -495,7 +489,7 @@ class PostRequest(WPRequest):
 	@property
 	def orderby(self):
 		return self.api_params.get('orderby', None)
-
+		
 	@orderby.setter
 	def orderby(self, value):
 		if value is None:
@@ -518,11 +512,11 @@ class PostRequest(WPRequest):
 	@property
 	def status(self):
 		return self._status
-
+	
 	@status.setter
 	def status(self, value):
 		'''
-
+		
 		Note that 'status' may contain one or more values.
 		Ref: https://developer.wordpress.org/rest-api/reference/posts/#arguments
 		'''
@@ -542,7 +536,7 @@ class PostRequest(WPRequest):
 		except:
 			pass
 		raise ValueError("'status' must be one of ['draft', 'pending', 'private', 'publish', 'future'] ('{0}' given)".format(value))
-
+		
 	@property
 	def categories(self):
 		return self._category_ids
@@ -551,7 +545,7 @@ class PostRequest(WPRequest):
 	def categories(self, values):
 		'''
 		This method validates the categories passed to this request.
-
+		
 		It accepts category ID (integer or string) or the slug value.
 		'''
 		if values is None:
@@ -560,7 +554,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Categories must be provided as a list (or append to the existing list, or None).")
-
+		
 		for c in values:
 			cat_id = None
 			if isinstance(c, Category):
@@ -582,7 +576,7 @@ class PostRequest(WPRequest):
 						#self._category_ids.append(category.s.id)
 					except exc.NoEntityFound:
 						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
-
+			
 			# Categories are stored as string ID values.
 			#
 			self._category_ids.append(str(cat_id))
@@ -595,7 +589,7 @@ class PostRequest(WPRequest):
 	def categories_exclude(self, values):
 		'''
 		This method validates the categories_exclude passed to this request.
-
+		
 		It accepts category ID (integer or string) or the slug value.
 		'''
 		if values is None:
@@ -604,7 +598,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("categories_exclude must be provided as a list (or append to the existing list, or None).")
-
+		
 		for c in values:
 			cat_id = None
 			if isinstance(c, Category):
@@ -626,7 +620,7 @@ class PostRequest(WPRequest):
 						#self._category_exclude_ids.append(category.s.id)
 					except exc.NoEntityFound:
 						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
-
+			
 			# Categories are stored as string ID values.
 			#
 			self._category_exclude_ids.append(str(cat_id))
@@ -637,7 +631,7 @@ class PostRequest(WPRequest):
 		The list of post slugs to retrieve.
 		'''
 		return self._slugs
-
+		
 	@slugs.setter
 	def slugs(self, values):
 		if values is None:
@@ -646,56 +640,31 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Slugs must be provided as a list (or append to the existing list).")
-
+		
 		for s in values:
 			if isinstance(s, str):
 				self._slugs.append(s)
 			else:
 				raise ValueError("Unexpected type for property list 'slugs'; expected str, got '{0}'".format(type(s)))
 
-	@property
-	def tags(self):
-		'''
-		The list of post tags to retrieve.
-		'''
-		return self._tags
 
-	@tags.setter
-	def tags(self, values):
-		'''
-		This method validates the tags passed to this request.
 
-		It accepts category ID (integer or string) or the slug value.
-		'''
-		if values is None:
-			self.parameters.pop("tags", None)
-			self._tags = list()
-			return
-		elif not isinstance(values, list):
-			raise ValueError("tags must be provided as a list (or append to the existing list, or None).")
 
-		for t in values:
-			tag_id = None
-			if isinstance(t, Tag):
-				tag_id = t.s.id
-#				self._category_exclude_ids.append(str(c.s.id))
-			elif isinstance(t, int):
-#				self._category_exclude_ids.append(str(c))
-				tag_id = t
-			elif isinstance(t, str):
-				try:
-					# is this a category ID value?
-					tag_id = int(t)
-					#self._category_exclude_ids.append(str(int(c)))
-				except ValueError:
-					# not a category ID value, try by slug?
-					try:
-						tag = self.api.tag(slug=t)
-						tag_id = tag.s.id
-						#self._category_exclude_ids.append(category.s.id)
-					except exc.NoEntityFound:
-						logger.debug("Asked to find a tag with the slug '{0}' but not found.".format(slug))
 
-			# Categories are stored as string ID values.
-			#
-			self._tags.append(str(tag_id))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

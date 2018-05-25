@@ -10,6 +10,8 @@ class WPORMCache:
 		'''
 		Method to retrieve wordpress-orm entity from cache; key can be WordPress 'id' or slug.
 		'''
+		if key is not None and isinstance(key, str) is False:
+			key = str(key)
 		if class_name not in self.cache:
 			self.cache[class_name] = dict()
 		try:
@@ -21,9 +23,9 @@ class WPORMCache:
 		'''
 		Method to set values in the cache.
 		'''
+		if key is not None and isinstance(key, str) is False:
+			key = str(key)
 		if class_name not in self.cache:
 			self.cache[class_name] = dict()
 		self.cache[class_name][key] = value
-		#for key in keys:
-		#	self.cache[class_name][key] = value
 
