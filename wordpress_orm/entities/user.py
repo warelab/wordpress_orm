@@ -31,15 +31,6 @@ class User(WPEntity):
 				   "roles", "password", "capabilities", "extra_capabilities", "avatar_urls", "meta"]
 		return self._schema_fields
 
-	def add_schema_field(self, new_field):
-		'''
-		Method to allow extending schema fields.
-		'''
-		assert isinstance(new_field, str)
-		new_field = new_field.lower()
-		if new_field not in self._schema_fields:
-			self._schema_fields.append(new_field)
-
 	@property
 	def posts(self):
 		if self._posts is None:
