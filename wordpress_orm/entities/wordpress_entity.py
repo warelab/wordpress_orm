@@ -23,9 +23,10 @@ class WPEntity(metaclass=ABCMeta):
 		if api is None:
 			raise Exception("Use the 'API.{0}()' method to create a new '{0}' object.".format(self.__class__.__name__))
 		
-		self.api = api		# holds the connection information
-		self.json = None	# holds the raw JSON returned from the API
-		self.s = WPSchema()	# an empty object to use to hold custom properties
+		self.api = api			   # holds the connection information
+		self.json = None		   # holds the raw JSON returned from the API
+		self.s = WPSchema()		   # an empty object to use to hold custom properties
+		self._schema_fields = None # a list of the fields in the schema
 		
 		# define the schema properties for the WPSchema object
 		for field in self.schema_fields:
@@ -37,7 +38,23 @@ class WPEntity(metaclass=ABCMeta):
 		This method returns a list of schema properties for this entity, e.g. ["id", "date", "slug", ...]
 		'''
 		pass
-	
+
+	def add_schema_field(self, new_field):
+		'''
+		Method to allow extending schema fields.
+		'''
+		assert isinstance(new_field, str)
+		new_field = new_field.lower()
+		if new_field not in self._schema_fields:
+			self._schema_fields.append(new_field)
+
+	def postprocess_response(self):
+		'''
+		Hook to allow custom subclasses to process responses.
+		Usually will access self.json to get the full JSON record that created this entity.
+		'''
+		pass	
+
 class WPRequest(metaclass=ABCMeta):
 	'''
 	Abstract superclass for WordPress requests.
@@ -50,7 +67,8 @@ class WPRequest(metaclass=ABCMeta):
 		self.api = api
 		self.parameters = dict()
 		self.response = None
-		
+		self._parameter_names = None
+
 		for arg in self.parameter_names:
 			setattr(self, arg, None)
 
@@ -80,7 +98,7 @@ class WPRequest(metaclass=ABCMeta):
 				self.response = self.api.session.get(url=self.url, params=self.parameters)
 		self.response.raise_for_status()
 		#return self.response
-	
+		
 	@property
 	def request(self):
 		if self.response:

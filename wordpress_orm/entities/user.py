@@ -15,18 +15,30 @@ class User(WPEntity):
 	
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
-	
+		
 		# parameters that undergo validation, i.e. need custom setter
 		self._context = None
 
 		# cache related objects
 		self._posts = None
-
+		
 	@property
 	def schema_fields(self):
-		return ["id", "username", "name", "first_name", "last_name", "email", "url",
-			   "description", "link", "locale", "nickname", "slug", "registered_date",
-			   "roles", "password", "capabilities", "extra_capabilities", "avatar_urls", "meta"]
+		if self._schema_fields is None:
+			# These are the default WordPress fields for the "user" object.
+			self._schema_fields = ["id", "username", "name", "first_name", "last_name", "email", "url",
+				   "description", "link", "locale", "nickname", "slug", "registered_date",
+				   "roles", "password", "capabilities", "extra_capabilities", "avatar_urls", "meta"]
+		return self._schema_fields
+
+	def add_schema_field(self, new_field):
+		'''
+		Method to allow extending schema fields.
+		'''
+		assert isinstance(new_field, str)
+		new_field = new_field.lower()
+		if new_field not in self._schema_fields:
+			self._schema_fields.append(new_field)
 
 	@property
 	def posts(self):
@@ -92,11 +104,14 @@ class UserRequest(WPRequest):
 		super().__init__(api=api)
 		self.id = None # WordPress ID
 		self._slugs = list() # can accept more than one
-		
+				
 	@property
 	def parameter_names(self):
-		return ["context", "page", "per_page", "search", "exclude",
-				"include", "offset", "order", "orderby", "slug", "roles"]
+		if self._parameter_names is None:
+			# parameter names defined by WordPress user query
+			self._parameter_names = ["context", "page", "per_page", "search", "exclude",
+									 "include", "offset", "order", "orderby", "slug", "roles"]
+		return self._parameter_names
 		
 	@property
 	def slug(self):
@@ -115,7 +130,7 @@ class UserRequest(WPRequest):
 					raise ValueError("slugs must be string type; found '{0}'".format(type(v)))
 			self._slugs = value
 
-	def get(self):
+	def get(self, classobject=User):
 		'''
 		'''
 		self.url = self.api.base_url + 'users'
@@ -167,7 +182,8 @@ class UserRequest(WPRequest):
 			except WPORMCacheObjectNotFoundError:
 				pass
 
-			user = User(api=self.api)
+			user = classobject.__new__(classobject)
+			user.__init__(api=self.api)
 			user.json = d
 			
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
@@ -200,6 +216,10 @@ class UserRequest(WPRequest):
 				user.s.roles = d["roles"]
 				user.s.capabilities = d["capabilities"]
 				user.s.extra_capabilities = d["extra_capabilities"]
+			
+			# allow subclasses to process single entity
+			#print("json: {0}".format(user.json))
+			user.postprocess_response()
 			
 			# add to cache
 			self.api.wordpress_object_cache.set(class_name=User.__name__, key=str(user.s.id), value=user)
