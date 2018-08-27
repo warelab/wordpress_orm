@@ -40,13 +40,10 @@ class Page(WPEntity):
 
 	@property
 	def schema_fields(self):
-		if self._schema_fields is None:
-			# These are the default WordPress fields for the "page" object.
-			self._schema_fields = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
-									"slug", "status", "type", "password", "parent", "title", "content", "author",
-									"excerpt", "featured_media", "comment_status", "ping_status", "menu_order",
-									"meta", "template"]
-		return self._schema_fields
+		return ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
+			   "slug", "status", "type", "password", "parent", "title", "content", "author",
+			   "excerpt", "featured_media", "comment_status", "ping_status", "menu_order",
+			   "meta", "template"]
 
 	@property
 	def featured_media(self):
@@ -117,14 +114,11 @@ class PageRequest(WPRequest):
 		'''
 		Page request parameters.
 		'''
-		if self._parameter_names is None:
-			# parameter names defined by WordPress page query
-			self._parameter_names = ["context", "page", "per_page", "search", "after", "author",
-									"author_exclude", "before", "exclude", "include", "menu_order", "offset",
-									"order", "orderby", "parent", "parent_exclude", "slug", "status"]
-		return self._parameter_names
+		return ["context", "page", "per_page", "search", "after", "author",
+				"author_exclude", "before", "exclude", "include", "menu_order", "offset",
+				"order", "orderby", "parent", "parent_exclude", "slug", "status"]
 
-	def get(self, classobject=Page, count=False):
+	def get(self, classname=Page, count=False):
 		'''
 		Returns a list of 'Page' objects that match the parameters set in this object.
 
@@ -194,6 +188,7 @@ class PageRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		# read response headers
 		self.total = self.response.headers['X-WP-Total']
@@ -213,7 +208,7 @@ class PageRequest(WPRequest):
 
 			# Before we continue, do we have this page in the cache already?
 			try:
-				page = self.api.wordpress_object_cache.get(class_name=Page.__name__, key=d["id"])
+				page = self.api.wordpress_object_cache.get(class_name=classobject.__name__, key=d["id"])
 				pages.append(page)
 				continue
 			except WPORMCacheObjectNotFoundError:
@@ -221,62 +216,67 @@ class PageRequest(WPRequest):
 
 			page = classobject.__new__(classobject)
 			page.__init__(api=self.api)
-			page.json = d
+			page.json = json.dumps(d)
 
-			# Properties applicable to 'view', 'edit', 'embed' query contexts
-			#
-			page.s.date = d["date"]
-			page.s.id = d["id"]
-			page.s.link = d["link"]
-			page.s.slug = d["slug"]
-			page.s.type = d["type"]
-			page.s.title = d["title"]
-			page.s.author = d["author"]
-			page.s.excerpt = d["excerpt"]["rendered"]
-			page.s.featured_media = d["featured_media"]
+			page.update_schema_from_dictionary(d)
 
-			# Properties applicable to only 'view', 'edit' query contexts:
-			#
-			if request_context in ["view", "edit"]:
-#				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
-#										"content", "comment_status", "ping_status", "format", "meta",
-#										"sticky", "template", "categories", "tags"]
-#				for key in view_edit_properties:
-#					setattr(page.s, key, d[key])
-				page.s.date_gmt = d["date_gmt"]
-				page.s.guid = d["guid"]
-				page.s.modified = d["modified"]
-				page.s.modified_gmt = d["modified_gmt"]
-				page.s.status = d["status"]
-				page.s.parent = d["parent"]
-				page.s.content = d["content"]["rendered"]
-				page.s.comment_status = d["comment_status"]
-				page.s.ping_status = d["ping_status"]
-				page.s.menu_order = d["menu_order"]
-				page.s.meta = d["meta"]
-				page.s.template = d["template"]
+# 			# Properties applicable to 'view', 'edit', 'embed' query contexts
+# 			#
+# 			page.s.date = d["date"]
+# 			page.s.id = d["id"]
+# 			page.s.link = d["link"]
+# 			page.s.slug = d["slug"]
+# 			page.s.type = d["type"]
+# 			page.s.title = d["title"]
+# 			page.s.author = d["author"]
+# 			page.s.excerpt = d["excerpt"]["rendered"]
+# 			page.s.featured_media = d["featured_media"]
+# 
+# 			# Properties applicable to only 'view', 'edit' query contexts:
+# 			#
+# 			if request_context in ["view", "edit"]:
+# #				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
+# #										"content", "comment_status", "ping_status", "format", "meta",
+# #										"sticky", "template", "categories", "tags"]
+# #				for key in view_edit_properties:
+# #					setattr(page.s, key, d[key])
+# 				page.s.date_gmt = d["date_gmt"]
+# 				page.s.guid = d["guid"]
+# 				page.s.modified = d["modified"]
+# 				page.s.modified_gmt = d["modified_gmt"]
+# 				page.s.status = d["status"]
+# 				page.s.parent = d["parent"]
+# 				page.s.content = d["content"]["rendered"]
+# 				page.s.comment_status = d["comment_status"]
+# 				page.s.ping_status = d["ping_status"]
+# 				page.s.menu_order = d["menu_order"]
+# 				page.s.meta = d["meta"]
+# 				page.s.template = d["template"]
+# 
+# 			# Properties applicable to only 'edit' query contexts
+# 			#
+# 			if request_context in ['edit']:
+# 				page.s.password = d["password"]
+# 
+# 			# Properties applicable to only 'view' query contexts
+# 			#
+# 			if request_context == 'view':
+# 				page.s.title = d["title"]["rendered"]
+# 			else:
+# 				# not sure what the returned 'title' object looks like
+# 				logger.debug(d)
+# 				logger.debug(d["title"])
+# 				logger.debug(request_context)
+# 				raise NotImplementedError
 
-			# Properties applicable to only 'edit' query contexts
-			#
-			if request_context in ['edit']:
-				page.s.password = d["password"]
+			if "_embedded" in d:
+				logger.debug("TODO: implement _embedded content for Page object")
 
-			# Properties applicable to only 'view' query contexts
-			#
-			if request_context == 'view':
-				page.s.title = d["title"]["rendered"]
-			else:
-				# not sure what the returned 'title' object looks like
-				logger.debug(d)
-				logger.debug(d["title"])
-				logger.debug(request_context)
-				raise NotImplementedError
-
-			# Allow postprocessing for custom fields
 			page.postprocess_response()
+
 			# add to cache
-			self.api.wordpress_object_cache.set(class_name=Page.__name__, key=page.s.id, value=page)
-			self.api.wordpress_object_cache.set(class_name=Page.__name__, key=page.s.slug, value=page)
+			self.api.wordpress_object_cache.set(value=page, keys=(page.s.id, page.s.slug))
+
 
 			pages.append(page)
 

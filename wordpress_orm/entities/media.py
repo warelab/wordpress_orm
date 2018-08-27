@@ -5,6 +5,7 @@ WordPress API reference: https://developer.wordpress.org/rest-api/reference/medi
 '''
 
 import os
+import json
 import logging
 
 import requests
@@ -33,13 +34,27 @@ class Media(WPEntity):
 
 	@property
 	def schema_fields(self):
+
 		if self._schema_fields is None:
-			# These are the default WordPress fields for the "media" object.
-			self._schema_fields = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
-									"slug", "status", "type", "title", "author", "comment_status",
-									"ping_status", "meta", "template", "alt_text", "caption", "description",
-									"media_type", "mime_type", "media_details", "post", "source_url"]
+			self._schema_fields = ["date", "date_gmt", "guid", "id", "link", "modified",
+									"modified_gmt", "slug", "status", "type", "title",
+									"author", "comment_status", "ping_status", "meta",
+									"template", "alt_text", "caption", "description",
+									"media_type", "mime_type", "media_details", "post",
+									"source_url"]
 		return self._schema_fields
+
+	@property
+	def post_fields(self):
+		'''
+		Arguments for MEDIA requests.
+		'''
+		if self._post_fields is None:
+			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
+			self._post_fields = ["date_gmt", "slug", "status", "title", "author",
+								 "comment_status", "ping_status", "meta", "template",
+								 "alt_text", "caption", "description", "post"]
+		return self._post_fields
 
 	@property
 	def media_type(self):
@@ -53,6 +68,7 @@ class Media(WPEntity):
 		'''
 		Returns the author of this post, class: 'User'.
 		'''
+		# TODO: check cache first!
 		if self._author is None:
 			ur = self.api.UserRequest()
 			ur.id = self.s.author # ID for the author of the object
@@ -68,6 +84,7 @@ class Media(WPEntity):
 		'''
 		The post associated with this media item.
 		'''
+		# TODO check cache first
 		if self._associated_post is None:
 			pr = self.api.PostRequest()
 			pr.id = self.s.featured_media
@@ -95,16 +112,10 @@ class MediaRequest(WPRequest):
 
 	@property
 	def parameter_names(self):
-		'''
-		Media request parameters.
-		'''
-		if self._parameter_names is None:
-			# parameter names defined by WordPress media query
-			self._parameter_names = ["context", "page", "per_page", "search", "after", "author",
-									"author_exclude", "before", "exclude", "include", "offset",
-									"order", "orderby", "parent", "parent_exclude", "slug", "status",
-									"media_type", "mime_type"]
-		return self._parameter_names
+		return ["context", "page", "per_page", "search", "after", "author",
+				"author_exclude", "before", "exclude", "include", "offset",
+				"order", "orderby", "parent", "parent_exclude", "slug", "status",
+				"media_type", "mime_type"]
 
 	def get(self, classobject=Media):
 		self.url = self.api.base_url + "media"
@@ -186,8 +197,7 @@ class MediaRequest(WPRequest):
 			logger.debug("HTTP error! media response code: {}".format(self.response.status_code))
 			if self.response.status_code == 404:
 				return None
-			elif self.response.status_code == 404:
-				return None
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		media_data = self.response.json()
 
@@ -200,53 +210,21 @@ class MediaRequest(WPRequest):
 
 			# Before we continue, do we have this Media in the cache already?
 			try:
-				media = self.api.wordpress_object_cache.get(class_name=Media.__name__, key=d["id"])
-				media_objects.append(media)
-				continue
+				media = self.api.wordpress_object_cache.get(class_name=classobject.__name__, key=d["id"])
 			except WPORMCacheObjectNotFoundError:
-				pass
+				media = classobject.__new__(classobject)
+				media.__init__(api=self.api)
+				media.json = json.dumps(d)
 
-			media = classobject.__new__(classobject)
-			media.__init__(api=self.api)
-			media.json = d
+				media.update_schema_from_dictionary(d)
 
-			# Properties applicable to 'view', 'edit', 'embed' query contexts
-			#
-			#logger.debug(d)
-			media.s.date = d["date"]
-			media.s.id = d["id"]
-			media.s.link = d["link"]
-			media.s.slug = d["slug"]
-			media.s.type = d["type"]
-			media.s.title = d["title"]
-			media.s.author = d["author"]
-			media.s.alt_text = d["alt_text"]
-			media.s.caption = d["caption"]["rendered"]
-			media.s.media_type = d["media_type"]
-			media.s.mime_type = d["mime_type"]
-			media.s.media_details = d["media_details"]
-			media.s.source_url = d["source_url"]
+				if "_embedded" in d:
+					logger.debug("TODO: implement _embedded content for Media object")
 
-			# Properties applicable only to 'view', 'edit' query contexts
-			#
-			if request_context in ["view", "edit"]:
-				media.s.date_gmt = d["date_gmt"]
-				media.s.guid = d["guid"]
-				media.s.modified = d["modified"]
-				media.s.modified_gmt = d["modified_gmt"]
-				media.s.status = d["status"]
-				media.s.comment_status = d["comment_status"]
-				media.s.ping_status = d["ping_status"]
-				media.s.meta = d["meta"]
-				media.s.template = d["template"]
-				media.s.description = d["description"]["rendered"]
-				media.s.post = d["post"]
+				media.postprocess_response(data=d)
 
-			# Allow postprocessing for custom fields
-			media.postprocess_response()
-			# add to cache
-			self.api.wordpress_object_cache.set(class_name=Media.__name__, key=media.s.id, value=media)
-			self.api.wordpress_object_cache.set(class_name=Media.__name__, key=media.s.slug, value=media)
+				# add to cache
+				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
 
 			media_objects.append(media)
 

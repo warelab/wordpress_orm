@@ -35,11 +35,8 @@ class Tag(WPEntity):
 
 	@property
 	def schema_fields(self):
-		if self._schema_fields is None:
-			# These are the default WordPress fields for the "user" object.
-			self._schema_fields = ["id", "count", "description", "link",
-									"name", "slug", "taxonomy", "meta"]
-		return self._schema_fields
+		return ["id", "count", "description", "link",
+			   "name", "slug", "taxonomy", "meta"]
 
 class TagRequest(WPRequest):
 	'''
@@ -69,11 +66,11 @@ class TagRequest(WPRequest):
 
 	@property
 	def parameter_names(self):
-		if self._parameter_names is None:
-			# parameter names defined by WordPress user query
-			self._parameter_names = ["context", "page", "per_page", "search", "exclude", "include", "offset",
-										"order", "orderby", "hide_empty", "post", "slug"]
-		return self._parameter_names
+		'''
+		Page request parameters.
+		'''
+		return ["context", "page", "per_page", "search", "exclude", "include", "offset",
+				"order", "orderby", "hide_empty", "post", "slug"]
 
 	def get(self, classobject=Tag, count=False):
 		'''
@@ -140,7 +137,8 @@ class TagRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
-
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
+			
 		# read response headers
 		self.total = self.response.headers['X-WP-Total']
 		self.total_pages = self.response.headers['X-WP-TotalPages']
@@ -159,7 +157,7 @@ class TagRequest(WPRequest):
 
 			# Before we continue, do we have this page in the cache already?
 			try:
-				tag = self.api.wordpress_object_cache.get(class_name=Tag.__name__, key=d["id"])
+				tag = self.api.wordpress_object_cache.get(class_name=classobject.__name__, key=d["id"])
 				tags.append(tag)
 				continue
 			except WPORMCacheObjectNotFoundError:
@@ -167,32 +165,36 @@ class TagRequest(WPRequest):
 
 			tag = classobject.__new__(classobject)
 			tag.__init__(api=self.api)
-			tag.json = d
+			tag.json = json.dumps(d)
+
+			tag.update_schema_from_dictionary(d)
 
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
-			tag.s.id = d["id"]
-			tag.s.link = d["link"]
-			tag.s.slug = d["slug"]
-			tag.s.taxonomy = d["taxonomy"]
+# 			tag.s.id = d["id"]
+# 			tag.s.link = d["link"]
+# 			tag.s.slug = d["slug"]
+# 			tag.s.taxonomy = d["taxonomy"]
 
 			# Properties applicable to only 'view', 'edit' query contexts:
 			#
-			if request_context in ["view", "edit"]:
-#				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
-#										"content", "comment_status", "ping_status", "format", "meta",
-#										"sticky", "template", "categories", "tags"]
-#				for key in view_edit_properties:
-#					setattr(page.s, key, d[key])
-				tag.s.count = d["count"]
-				tag.s.description = d["description"]
-				tag.s.meta = d["meta"]
+# 			if request_context in ["view", "edit"]:
+# #				view_edit_properties = ["date_gmt", "guid", "modified", "modified_gmt", "status",
+# #										"content", "comment_status", "ping_status", "format", "meta",
+# #										"sticky", "template", "categories", "tags"]
+# #				for key in view_edit_properties:
+# #					setattr(page.s, key, d[key])
+# 				tag.s.count = d["count"]
+# 				tag.s.description = d["description"]
+# 				tag.s.meta = d["meta"]
 
-			# Allow postprocessing for custom fields
-			tag.postprocess_response()
+			if "_embedded" in d:
+				logger.debug("TODO: implement _embedded content for Tag object")
+				
+			slug.postprocess_response()
+			
 			# add to cache
-			self.api.wordpress_object_cache.set(class_name=Tag.__name__, key=tag.s.id, value=tag)
-			self.api.wordpress_object_cache.set(class_name=Tag.__name__, key=tag.s.slug, value=tag)
+			self.api.wordpress_object_cache.set(value=tag, keys=(tag.s.id, tag.s.slug))
 
 			tags.append(tag)
 

@@ -3,17 +3,19 @@
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
 '''
 
+import json
 import logging
 import requests
 
 from .wordpress_entity import WPEntity, WPRequest, context_values
 from ..cache import WPORMCacheObjectNotFoundError
+from ..exc import AuthenticationRequired, MissingRequiredParameter
 
 logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
 
 class User(WPEntity):
 
-	def __init__(self, id=None, session=None, api=None):
+	def __init__(self, id=None, session=None, api=None, from_dictionary=None):
 		super().__init__(api=api)
 
 		# parameters that undergo validation, i.e. need custom setter
@@ -30,6 +32,64 @@ class User(WPEntity):
 				   "description", "link", "locale", "nickname", "slug", "registered_date",
 				   "roles", "password", "capabilities", "extra_capabilities", "avatar_urls", "meta"]
 		return self._schema_fields
+
+	@property
+	def post_fields(self):
+		'''
+		Arguments for USER requests.
+		'''
+		if self._post_fields is None:
+			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
+			self._post_fields = ["username", "name", "first_name", "last_name",
+								 "email", "url", "description", "locale", "nickname",
+								 "slug", "password", "meta"]
+		return self._post_fields
+# 	def populate_from_dictionary(self, d):
+# 		'''
+# 		Populate this user's schema from the provided dictionary.
+#
+# 		This is useful to parse the JSON dictionary returned by the WordPress API or embedded content
+# 		(see: https://developer.wordpress.org/rest-api/using-the-rest-api/linking-and-embedding/#embedding).
+# 		'''
+# 		if d is None or not isinstance(d, dict):
+# 			raise ValueError("The method 'populate_from_dictionary' expects a dictionary.")
+#
+# 		for key in ["id", "name", "url", "description", "link", "slug", "avatar_urls", "meta",
+# 					"username", "first_name", "last_name", "email", "locale", "nickname",
+# 					"registered_date", "roles", "capabilities", "extra_capabilities"]:
+# 			if key in d:
+# 				setattr(self.s, key, d[key])
+# 		if d["id"]:
+# 			self.u.id = d["id"]
+
+
+	def commit(self):
+		'''
+		Creates a new user or updates an existing user via the API.
+		'''
+		# is this a new user?
+		new_user = (self.s.id is None)
+
+		post_fields = ["username", "name", "first_name", "last_name", "email", "url",
+					   "description", "locale", "nickname", "slug", "roles", "password", "meta"]
+		if new_user:
+			post_fields.append("id")
+
+		parameters = dict()
+		for field in post_fields:
+			if getattr(self.s, field) is not None:
+				parameters[field] = getattr(self.s, field)
+
+		# new user validation
+		if new_user:
+			required_fields = ["username", "email", "password"]
+			for field in required_fields:
+				if getattr(self.s, field) is None:
+					raise MissingRequiredParameter("The '{0}' field must be provided when creating a new user.".format(field))
+
+		response = self.api.session.post(url=self.url, params=parameters, auth=self.api.auth())
+
+		return response
 
 	@property
 	def posts(self):
@@ -94,7 +154,16 @@ class UserRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.id = None # WordPress ID
+		self._page = None
+		self._per_page = None
+		self._offset = None
+		self._order = None
+		self._orderby = None
+
+		# parameters that undergo validation, i.e. need custom setter
+		self._includes = list()
 		self._slugs = list() # can accept more than one
+		self._roles = list()
 
 	@property
 	def parameter_names(self):
@@ -104,22 +173,7 @@ class UserRequest(WPRequest):
 									 "include", "offset", "order", "orderby", "slug", "roles"]
 		return self._parameter_names
 
-	@property
-	def slug(self):
-		return self._slugs
-
-	@slug.setter
-	def slug(self, value):
-		if value is None:
-			self._slugs = list()
-		elif isinstance(value, str):
-			self._slugs.append(value)
-		elif isinstance(value, list):
-			# validate data type
-			for v in value:
-				if not isinstance(v, str):
-					raise ValueError("slugs must be string type; found '{0}'".format(type(v)))
-			self._slugs = value
+	# ========================================= perform query ==================================
 
 	def get(self, classobject=User):
 		'''
@@ -138,11 +192,42 @@ class UserRequest(WPRequest):
 		else:
 			request_context = "view" # default value
 
-		if len(self.slug) > 1:
-			self.parameters["slug"] = ",".join(self.slug)
+		if self.page:
+			self.parameters["page"] = self.page
+
+		if self.per_page:
+			self.parameters["per_page"] = self.per_page
 
 		if self.search:
 			self.parameters["search"] = self.search
+
+		# exclude : Ensure result set excludes specific IDs.
+		if self.search:
+			self.parameters["exclude"] = self.search
+
+		# include : Limit result set to specific IDs.
+		if len(self._includes) > 0:
+			self.parameters["include"] = ",".join.self._includes
+
+		# offset : Offset the result set by a specific number of items.
+		if self.offset:
+			self.parameters["offset"] = self.search
+
+		# order : Order sort attribute ascending or descending, default "asc", one of ["asc", "desc"]
+		if self.order:
+			self.parameters["order"] = self.order
+
+		# orderby : Sort collection by object attribute.
+		if self.orderby:
+			self.parameters["orderby"] = self.orderby
+
+		# slug : Limit result set to users with one or more specific slugs.
+		if len(self.slug) > 0:
+			self.parameters["slug"] = ",".join(self.slug)
+
+		# roles : Limit result set to users matching at least one specific role provided. Accepts csv list or single role.
+		if len(self.roles) > 0:
+			self.parameters["roles"] = ",".join(self.roles)
 
 		# -------------------
 
@@ -151,10 +236,16 @@ class UserRequest(WPRequest):
 			logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
 			logger.debug("User response code: {}".format(self.response.status_code))
-			if self.response.status_code == 404:
-				return None
-			elif self.response.status_code == 404:
-				return None
+			if 400 < self.response.status_code < 499:
+				if self.response.status_code in [401, 403]: # 401 = Unauthorized, 403 = Forbidden
+					data = self.response.json()
+					if data["code"] == 'rest_user_cannot_view':
+						# TODO: write more detailed message and propose solution
+						raise AuthenticationRequired("WordPress authentication is required for this operation. Response: {0}".format(data))
+					raise AuthenticationRequired("WordPress authentication is required for this operation. Response: {0}".format(data))
+#				elif self.response.status_code == 404:
+#					return None
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		users_data = self.response.json()
 
@@ -167,7 +258,7 @@ class UserRequest(WPRequest):
 
 			# Before we continue, do we have this User in the cache already?
 			try:
-				user = self.api.wordpress_object_cache.get(class_name=User.__name__, key=d["id"])
+				user = self.api.wordpress_object_cache.get(class_name=classobject.__name__, key=d["id"])
 				users.append(user)
 				continue
 			except WPORMCacheObjectNotFoundError:
@@ -175,49 +266,58 @@ class UserRequest(WPRequest):
 
 			user = classobject.__new__(classobject)
 			user.__init__(api=self.api)
-			user.json = d
+			user.json = json.dumps(d)
 
 			# Properties applicable to 'view', 'edit', 'embed' query contexts
 			#
 			#   "id", "name", "url", "description", "link", "slug", "avatar_urls"
 			#
-			user.s.id = d["id"]
-			user.s.name = d["name"]
-			user.s.url = d["url"]
-			user.s.description = d["description"]
-			user.s.link = d["link"]
-			user.s.slug = d["slug"]
-			user.s.avatar_urls = d["avatar_urls"]
+# 			user.s.id = d["id"]
+# 			user.s.name = d["name"]
+# 			user.s.url = d["url"]
+# 			user.s.description = d["description"]
+# 			user.s.link = d["link"]
+# 			user.s.slug = d["slug"]
+# 			user.s.avatar_urls = d["avatar_urls"]
+#
+# 			# Properties applicable to only 'view', 'edit' query contexts:
+# 			#
+# 			if request_context in ["view", "edit"]:
+# 				user.meta = d["meta"]
+#
+# 			# Properties applicable to only 'edit' query contexts
+# 			#
+# 			if request_context in ["edit"]:
+# 				user.s.username = d["username"]
+# 				user.s.first_name = d["first_name"]
+# 				user.s.last_name = d["last_name"]
+# 				user.s.email = d["email"]
+# 				user.s.locale = d["locale"]
+# 				user.s.nickname = d["nickname"]
+# 				user.s.registered_date = d["registered_date"]
+# 				user.s.roles = d["roles"]
+# 				user.s.capabilities = d["capabilities"]
+# 				user.s.extra_capabilities = d["extra_capabilities"]
 
-			# Properties applicable to only 'view', 'edit' query contexts:
-			#
-			if request_context in ["view", "edit"]:
-				user.meta = d["meta"]
+			user.update_schema_from_dictionary(d)
 
-			# Properties applicable to only 'edit' query contexts
-			#
-			if request_context in ["edit"]:
-				user.s.username = d["username"]
-				user.s.first_name = d["first_name"]
-				user.s.last_name = d["last_name"]
-				user.s.email = d["email"]
-				user.s.locale = d["locale"]
-				user.s.nickname = d["nickname"]
-				user.s.registered_date = d["registered_date"]
-				user.s.roles = d["roles"]
-				user.s.capabilities = d["capabilities"]
-				user.s.extra_capabilities = d["extra_capabilities"]
+			if "_embedded" in d:
+				logger.debug("TODO: implement _embedded content for User object")
+
+			#logger.debug("User response keys: {}".format(d.keys()))
 
 			# allow subclasses to process single entity
+			#logger.debug("json: {0}".format(user.json))
 			user.postprocess_response()
 
 			# add to cache
-			self.api.wordpress_object_cache.set(class_name=User.__name__, key=str(user.s.id), value=user)
-			self.api.wordpress_object_cache.set(class_name=User.__name__, key=user.s.slug, value=user)
+			self.api.wordpress_object_cache.set(value=user, keys=(user.s.id, user.s.slug))
 
 			users.append(user)
 
 		return users
+
+	# ================================= query properties ==============================
 
 	@property
 	def context(self):
@@ -237,3 +337,175 @@ class UserRequest(WPRequest):
 			except:
 				pass
 		raise ValueError ("'context' may only be one of ['view', 'embed', 'edit'] ('{0}' given)".format(value))
+
+	@property
+	def page(self):
+		'''
+		Current page of the collection.
+		'''
+		return self._page
+
+	@page.setter
+	def page(self, value):
+		#
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._page = value
+		elif isinstance(value, str):
+			try:
+				self._page = int(value)
+			except ValueError:
+				raise ValueError("The 'page' parameter must be an integer, was given '{0}'".format(value))
+
+	@property
+	def per_page(self):
+		'''
+		Maximum number of items to be returned in result set.
+		'''
+		return self._per_page
+
+	@per_page.setter
+	def per_page(self, value):
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._per_page = value
+		elif isinstance(value, str):
+			try:
+				self._per_page = int(value)
+			except ValueError:
+				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
+
+	@property
+	def include(self):
+		return self._includes
+
+	@include.setter
+	def include(self, values):
+		'''
+		Limit result set to specified WordPress user IDs, provided as a list.
+		'''
+		if values is None:
+			self.parameters.pop("include", None)
+			self._includes = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Includes must be provided as a list (or append to the existing list).")
+
+		for inc in values:
+			if isinstance(inc, int):
+				self._includes.append(str(inc))
+			elif isinstance(inc, str):
+				try:
+					self._includes.append(str(int(inc)))
+				except ValueError:
+					raise ValueError("The WordPress ID (an integer, '{0}' given) must be provided to limit result to specific users.".format(inc))
+
+	@property
+	def offset(self):
+		return self._offset
+
+	@offset.setter
+	def offset(self, value):
+		'''
+		Set value to offset the result set by the specified number of items.
+		'''
+		if value is None:
+			self.parameters.pop("offset", None)
+			self._offset = None
+		elif isinstance(value, int):
+			self._offset = value
+		elif isinstance(value, str):
+			try:
+				self._offset = str(int(str))
+			except ValueError:
+				raise ValueError("The 'offset' value should be an integer, was given: '{0}'.".format(value))
+
+	@property
+	def order(self):
+		return self._order;
+		#return self.api_params.get('order', None)
+
+	@order.setter
+	def order(self, value):
+		if value is None:
+			self.parameters.pop("order", None)
+			self._order = None
+		else:
+			order_values = ['asc', 'desc']
+			if isinstance(value, str):
+				value = value.lower()
+				if value not in order_values:
+					raise ValueError('The "order" parameter must be one '+\
+									 'of these values: {}'.format(order_values))
+				else:
+					#self.api_params['order'] = value
+					self._order = value
+			else:
+				raise ValueError('The "order" parameter must be one of '+\
+								 'these values: {} (or None).'.format(order_values))
+		return self._order
+
+	@property
+	def orderby(self):
+		return self._orderby #api_params.get('orderby', None)
+
+	@orderby.setter
+	def orderby(self, value):
+		if value is None:
+			self.parameters.pop("orderby", None)
+			self._orderby = None
+		else:
+			order_values = ['asc', 'desc']
+			if isinstance(value, str):
+				value = value.lower()
+				if value not in orderby_values:
+					raise ValueError('The "orderby" parameter must be one '+\
+									 'of these values: {}'.format(orderby_values))
+				else:
+					#self.api_params['orderby'] = value
+					self._orderby = value
+			else:
+				raise ValueError('The "orderby" parameter must be one of these '+\
+								 'values: {} (or None).'.format(orderby_values))
+		return self._orderby
+
+	@property
+	def slug(self):
+		return self._slugs
+
+	@slug.setter
+	def slug(self, value):
+		if value is None:
+			self._slugs = list()
+		elif isinstance(value, str):
+			self._slugs.append(value)
+		elif isinstance(value, list):
+			# validate data type
+			for v in value:
+				if not isinstance(v, str):
+					raise ValueError("slugs must be string type; found '{0}'".format(type(v)))
+			self._slugs = value
+
+	@property
+	def roles(self):
+		'''
+		User roles to be used in query.
+		'''
+		return self._roles
+
+	@roles.setter
+	def roles(self, values):
+		if values is None:
+			self.parameters.pop("roles", None)
+			self._roles = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Roles must be provided as a list (or append to the existing list).")
+
+		for role in values:
+			if isinstance(role, str):
+				self.roles.append(role)
+			else:
+				raise ValueError("Unexpected type for property list 'roles'; expected str, got '{0}'".format(type(s)))

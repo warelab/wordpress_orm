@@ -31,11 +31,20 @@ class Category(WPEntity):
 
 	@property
 	def schema_fields(self):
+
 		if self._schema_fields is None:
-			# These are the default WordPress fields for the "category" object.
-			self._schema_fields = ["id", "count", "description", "link",
-									"name", "slug", "taxonomy", "parent", "meta"]
+			self._schema_fields = ["id", "count", "description", "link", "name",
+									"slug", "taxonomy", "parent", "meta"]
 		return self._schema_fields
+
+	@property
+	def post_fields(self):
+		'''
+		Arguments for CATEGORY requests.
+		'''
+		if self._post_fields is None:
+			self._post_fields = ["description", "name", "slug", "parent", "meta"]
+		return self._post_fields
 
 	# Pass-through properties
 	# -----------------------
@@ -102,18 +111,12 @@ class CategoryRequest(WPRequest):
 
 	@property
 	def parameter_names(self):
-		'''
-		Category request parameters.
-		'''
-		if self._parameter_names is None:
-			# parameter names defined by WordPress category query
-			self._parameter_names = ["context", "page", "per_page", "search", "exclude", "include",
-									"order", "orderby", "hide_empty", "parent", "post", "slug"]
-		return self._parameter_names
+		return ["context", "page", "per_page", "search", "exclude", "include",
+				"order", "orderby", "hide_empty", "parent", "post", "slug"]
 
-	def get(self, classobject=Category):
+	def get(self):
 		'''
-		Returns a list of 'Categorie' objects that match the parameters set in this object.
+		Returns a list of 'Post' objects that match the parameters set in this object.
 		'''
 		self.url = self.api.base_url + "categories"
 
@@ -144,6 +147,10 @@ class CategoryRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
+			elif self.response.status_code == 500: #
+				raise Exception("500: Internal Server Error. Error: \n{0}".format(self.response.json()))
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
+
 
 		categories_data = self.response.json()
 
@@ -156,37 +163,41 @@ class CategoryRequest(WPRequest):
 
 			# Before we continue, do we have this Category in the cache already?
 			try:
+				logger.debug(d)
 				category = self.api.wordpress_object_cache.get(Category.__name__, key=d["id"])
 				categories.append(category)
 				continue
 			except WPORMCacheObjectNotFoundError:
 				pass
 
-			category = classobject.__new__(classobject)
-			category.__init__(api=self.api)
-			category.json = d
+			category = Category(api=self.api)
+			category.json = json.dumps(d)
 
-			# Properties applicable to 'view', 'edit', 'embed' query contexts
-			#
-			category.s.id = d["id"]
-			category.s.link = d["link"]
-			category.s.name = d["name"]
-			category.s.slug = d["slug"]
-			category.s.taxonomy = d["taxonomy"]
+			category.update_schema_from_dictionary(d)
 
-			# Properties applicable to only 'view', 'edit' query contexts:
-			#
-			if request_context in ["view", "edit"]:
-				category.s.count = d["count"]
-				category.s.description = d["description"]
-				category.s.parent = d["parent"]
-				category.s.meta = d["meta"]
+# 			# Properties applicable to 'view', 'edit', 'embed' query contexts
+# 			#
+# 			category.s.id = d["id"]
+# 			category.s.link = d["link"]
+# 			category.s.name = d["name"]
+# 			category.s.slug = d["slug"]
+# 			category.s.taxonomy = d["taxonomy"]
+#
+# 			# Properties applicable to only 'view', 'edit' query contexts:
+# 			#
+# 			if request_context in ["view", "edit"]:
+# 				category.s.count = d["count"]
+# 				category.s.description = d["description"]
+# 				category.s.parent = d["parent"]
+# 				category.s.meta = d["meta"]
 
-			# Allow postprocessing for custom fields
+			if "_embedded" in d:
+				logger.debug("TODO: implement _embedded content for Category object")
+
 			category.postprocess_response()
+
 			# add to cache
-			self.api.wordpress_object_cache.set(class_name=Category.__name__, key=category.s.id, value=category)
-			self.api.wordpress_object_cache.set(class_name=Category.__name__, key=category.s.slug, value=category)
+			self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
 
 			categories.append(category)
 

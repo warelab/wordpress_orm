@@ -25,33 +25,21 @@ class WPEntity(metaclass=ABCMeta):
 	def __init__(self, api=None):
 
 		if api is None:
-			raise Exception("Use the 'wordpress_orm.API.{0}()' method to create a new '{0}' object (or set the 'api' parameter).".format(self.__class__.__name__))
+			raise Exception("Use the 'API.{0}()' method to create a new '{0}' object.".format(self.__class__.__name__))
 
 		self.api = api			   # holds the connection information
 		self.json = None		   # holds the raw JSON returned from the API
 		self.s = WPSchema()		   # an empty object to use to hold custom properties
 		self._schema_fields = None # a list of the fields in the schema
-		self._post_fields = None   # a list of the fields used in POST queries
 
 		# define the schema properties for the WPSchema object
 		for field in self.schema_fields:
-			setattr(self.s, field, None)
-
-		# POST fields are also implemented as schema properties
-		for field in self.post_fields:
 			setattr(self.s, field, None)
 
 	@abstractproperty
 	def schema_fields(self):
 		'''
 		This method returns a list of schema properties for this entity, e.g. ["id", "date", "slug", ...]
-		'''
-		pass
-
-	@abstractproperty
-	def post_fields(self):
-		'''
-		This method returns a list of properties for creating (POSTing) a new entity to WordPress, e.g. ["date", "slug", ...]
 		'''
 		pass
 
@@ -68,23 +56,6 @@ class WPEntity(metaclass=ABCMeta):
 		'''
 		Hook to allow custom subclasses to process responses.
 		Usually will access self.json to get the full JSON record that created this entity.
-		'''
-		pass
-
-	def post(self, url=None, parameters=None, data=None):
-		'''
-
-		'''
-		if self.api.session is None:
-			self.post_response = requests.post(url=url, data=data, params=parameters, auth=self.api.auth())
-		else:
-			# use existing session
-			self.post_response = self.api.session.post(url=url, data=data, params=parameters, auth=self.api.auth())
-		self.post_response.raise_for_status()
-
-	def preprocess_additional_post_fields(self, data=None, parameters=None):
-		'''
-		Hook for subclasses to allow for custom processing of POST request data (before the request is made).
 		'''
 		pass
 
@@ -130,6 +101,7 @@ class WPRequest(metaclass=ABCMeta):
 		self.parameters = dict()
 		self.response = None
 		self._parameter_names = None
+		self._data = None
 
 		for arg in self.parameter_names:
 			setattr(self, arg, None)
@@ -149,10 +121,6 @@ class WPRequest(metaclass=ABCMeta):
 	def get(self):
 		pass
 
-#	@abstractmethod
-#	def post(self):
-#		pass
-
 	def get_response(self):
 		if self.response is None:
 			if self.api.session is None:
@@ -164,6 +132,20 @@ class WPRequest(metaclass=ABCMeta):
 				self.response = self.api.session.get(url=self.url, params=self.parameters, auth=self.api.auth())
 		self.response.raise_for_status()
 		#return self.response
+
+	# @abstractmethod
+	# def update(self):
+	# 	pass
+
+	def post_update(self):
+		if self.api.session is None:
+			#logger.debug("creating new request")
+			# no exiting request, create a new one
+			self.response = requests.post(url=self.url, data=self.data, params=self.parameters, auth=self.api.auth())
+		else:
+			# use existing session
+			self.response = self.api.session.post(url=self.url, data=self.data, params=self.parameters, auth=self.api.auth())
+		self.response.raise_for_status()
 
 	@property
 	def request(self):

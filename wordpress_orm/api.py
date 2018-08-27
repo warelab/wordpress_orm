@@ -25,6 +25,7 @@ logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package
 
 @contextmanager
 def wp_session(api=None):
+	logger.warning("Note: 'wp_session' is deprecated. Please change 'with wp_session(wordpress_api)' to 'with wordpress_api.Session()'")
 	api.session = requests.Session()
 	yield api
 	api.session.close()
@@ -35,9 +36,16 @@ class API:
 
 	'''
 	def __init__(self, url=None):
-		self.base_url = url
+		self._base_url = url
 		self.session = None
-
+		
+		# A valid "requests" authentication handler,
+		# see: http://docs.python-requests.org/en/master/api/?highlight=get#authentication
+		#
+		# Options: HTTPBasicAuth(username, password), HTTPProxyAuth(username, password), HTTPDigestAuth(username, password)
+		#
+		self.authenticator = None
+		
 		self.wordpress_object_cache = WPORMCache() # dict() # key = class name, value = object
 
 		#
@@ -64,19 +72,55 @@ class API:
 #		if class_name not in self.wordpress_object_cache:
 #			self.wordpress_object_cache[class_name] = dict()
 
+	def auth(self):
+		'''
+		Returns a valid requests authentication handler.
+		'''
+		if self.authenticator is None or isinstance(self.authenticator, requests.auth.AuthBase):
+			return self.authenticator
+		else:
+			raise Exception("Unknown or unsupported authentication method.")
 
+	@contextmanager
+	def Session(self):
+		'''
+		Returns requests.Session object; use in the form 'with api.Session()' to use a single session in a block.
+		
+		Calling this method creates a new Session() object, but if used in a 'with' block, any existing value in
+		'self.session' is restored after exiting the block.
+		'''
+		old_session = self.session			# save existing session if there is one
+		new_session = requests.Session()	# create new session
+		self.session = new_session
+		yield new_session
+		
+		# ---------- below here is executed after 'with' block ----------
+
+		self.session = old_session			# restore original session (if there was one)
+		
+	@property
+	def base_url(self):
+		return self._base_url
+	
+	@base_url.setter
+	def base_url(self, url):
+		if not url[-1] == "/":
+			url = url + "/"
+		self._base_url = url
+	
 	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
 		return post.PostRequest(api=kwargs.pop('api', self), **kwargs)
 
-	def post(self, id=None, slug=None):
+	def post(self, id=None, slug=None, embed=True):
 		'''
 		Returns a Post object from the WordPress API with the provided ID.
 
 		id : WordPress ID
+		embed : retrieve full content of related entities instead of the WordPress ID, see: https://developer.wordpress.org/rest-api/using-the-rest-api/linking-and-embedding/#embedding
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
-			raise Exception("Only one of [id, slug] can be specified at a time.")
+			raise Exception("Only one of [id, slug] can be specified at a time (both were specified).")
 		if not any([id, slug]):
 			# none in list are defined
 			raise Exception("At least one of 'id' or 'slug' must be specified.")
@@ -99,7 +143,7 @@ class API:
 		if slug:
 			pr.slug = slug
 
-		posts = pr.get()
+		posts = pr.get(embed=embed)
 
 		if len(posts) == 1:
 			return posts[0]
@@ -120,10 +164,11 @@ class API:
 		id : WordPress ID
 		'''
 		if len([x for x in [id, slug] if x is not None]) > 1:
-			raise Exception("Only one of [id, slug] can be specified at a time.")
+			raise Exception("Only one of [id, slug] can be specified at a time (both were specified).")
 		elif id is None and slug is None:
-			# be careful of id=0 case
 			raise Exception("At least one of 'id' or 'slug' must be specified.")
+		elif id == 0:
+			return None
 
 		# check cache first
 		try:
@@ -152,7 +197,7 @@ class API:
 		else:
 			# more than one found
 			logger.debug(media_list)
-			assert False, "Should not get here!"
+			assert False, "More than one media item found. (parameters: id={0} slug={1}) Should not get here! Items found: {2}".format(id, slug, media_list)
 
 	def user(self, id=None, username=None, slug=None):
 		'''
