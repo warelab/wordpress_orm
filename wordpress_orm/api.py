@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import requests
 
 from .entities import post, user, media, category, comment, page, tag
-from . import exc
+from . import exc #, logger
 from .cache import WPORMCache, WPORMCacheObjectNotFoundError
 
 from .entities import Category
@@ -21,13 +21,14 @@ from .entities import Tag
 #from .entities import Taxonomy
 from .entities import User
 
-logger = logging.getLogger("{}".format(__loader__.name.split(".")[0])) # package name
+#package_name = __name__.split(".")[0]
+logger = logging.getLogger(__name__.split(".")[0]) # package name
 
 @contextmanager
 def wp_session(api=None):
-	logger.warning("Note: 'wp_session' is deprecated. Please change 'with wp_session(wordpress_api)' to 'with wordpress_api.Session()'")
 	api.session = requests.Session()
 	yield api
+	# ----  called after end of 'with' block ----
 	api.session.close()
 	api.session = None
 
@@ -38,14 +39,14 @@ class API:
 	def __init__(self, url=None):
 		self._base_url = url
 		self.session = None
-		
+
 		# A valid "requests" authentication handler,
 		# see: http://docs.python-requests.org/en/master/api/?highlight=get#authentication
 		#
 		# Options: HTTPBasicAuth(username, password), HTTPProxyAuth(username, password), HTTPDigestAuth(username, password)
 		#
 		self.authenticator = None
-		
+
 		self.wordpress_object_cache = WPORMCache() # dict() # key = class name, value = object
 
 		#
@@ -85,7 +86,7 @@ class API:
 	def Session(self):
 		'''
 		Returns requests.Session object; use in the form 'with api.Session()' to use a single session in a block.
-		
+
 		Calling this method creates a new Session() object, but if used in a 'with' block, any existing value in
 		'self.session' is restored after exiting the block.
 		'''
@@ -93,21 +94,22 @@ class API:
 		new_session = requests.Session()	# create new session
 		self.session = new_session
 		yield new_session
-		
+
 		# ---------- below here is executed after 'with' block ----------
 
 		self.session = old_session			# restore original session (if there was one)
-		
+
 	@property
 	def base_url(self):
 		return self._base_url
-	
+
 	@base_url.setter
 	def base_url(self, url):
 		if not url[-1] == "/":
 			url = url + "/"
 		self._base_url = url
-	
+
+
 	def PostRequest(self, **kwargs):
 		''' Factory method that returns a new PostRequest attached to this API. '''
 		return post.PostRequest(api=kwargs.pop('api', self), **kwargs)
@@ -344,7 +346,7 @@ class API:
 		if not any([id, slug]):
 			# none in list are defined
 			raise Exception("At least one of 'id' or 'slug' must be specified.")
-		
+
 		# check cache first
 		try:
 			if id:
