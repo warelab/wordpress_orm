@@ -1,4 +1,4 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
 '''
 WordPress API reference: https://developer.wordpress.org/rest-api/reference/posts/
 '''
@@ -27,14 +27,14 @@ class Post(WPEntity):
 
 	def __init__(self, id=None, session=None, api=None):
 		super().__init__(api=api)
-		
+
 		# related objects to cache
 		self._author = None
 		self._featured_media = None
 		self._comments = None
 		self._categories = None
 		self._date_gmt = None		# datetime object
-					
+
 	def __repr__(self):
 		if self.s.title is None:
 			truncated_title = "<NO TITLE SET>"
@@ -49,9 +49,9 @@ class Post(WPEntity):
 	def schema_fields(self):
 		if self._schema_fields is None:
 			self._schema_fields = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
-			  					   "slug", "status", "type", "password", "title", "content", "author",
-			  					   "excerpt", "featured_media", "comment_status", "ping_status", "format",
-			  					   "meta", "sticky", "template", "categories", "tags"]
+								   "slug", "status", "type", "password", "title", "content", "author",
+								   "excerpt", "featured_media", "comment_status", "ping_status", "format",
+								   "meta", "sticky", "template", "categories", "tags"]
 		return self._schema_fields
 
 	@property
@@ -75,34 +75,34 @@ class Post(WPEntity):
 
 		url = self.api.base_url + "{}".format("posts")
 		logger.debug("URL = {}".format(url))
-		
+
 		# Build a list of parameters based on the properties of the provided Post object.
 		post_parameters = dict()
 		post_data = dict()
-		
+
 		# date
 		# (Don't use the 'date' parameter as this is in the site's timezone, which we don't know.
 		#  Also note that WordPress doesn't properly support ISO8601,
 		#  see: https://core.trac.wordpress.org/ticket/41032)
-		
+
 		# date_gmt
 		if self.s.date_gmt is None:
 			post_parameters["date_gmt"] = datetime.now().isoformat()
 		else:
 			post_parameters["date_gmt"] = self.s.date_gmt.isoformat()
-		
+
 		#slug
 		if self.s.slug is not None:
 			post_parameters["slug"] = self.s.slug
-					
+
 		#status
 		if self.s.status is not None:
 			post_parameters["status"] = self.s.status
-		
+
 		#password
 		if self.s.password is not None:
 			post_parameters["password"] = self.s.password
-		
+
 		#title
 		if self.s.title is not None:
 			post_parameters["title"] = self.s.title
@@ -158,7 +158,7 @@ class Post(WPEntity):
 
 		#tags
 		pass
-		
+
 		#self.preprocess_additional_post_fields(data=post_data, parameters=post_parameters)
 		logger.debug(post_parameters)
 		try:
@@ -168,14 +168,14 @@ class Post(WPEntity):
 			if self.post_response.status_code == 400: # bad request
 				logger.debug("URL={}".format(self.post_response.url))
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.post_response.json(), indent=4)))
-				
+
 	@property
 	def featured_media(self):
 		'''
 		Returns the 'Media' object that is the "featured media" for this post.
 		'''
 		if self._featured_media is None and self.s.featured_media is not None:
-			
+
 			media_id = self.s.featured_media
 			if media_id == 0:
 				# no featured media for this post entry (this is what WordPress returns)
@@ -183,7 +183,7 @@ class Post(WPEntity):
 			else:
 				self._featured_media = self.api.media(id=media_id)
 		return self._featured_media
-	
+
 	@featured_media.setter
 	def featured_media(self, new_media):
 		'''
@@ -193,7 +193,7 @@ class Post(WPEntity):
 			self._featured_media = new_media
 		else:
 			raise ValueError("The featured media of a Post must be an object of class 'Media' ('{0}' provided).".format(type(new_media).__name__))
-	
+
 	@property
 	def date(self):
 		'''
@@ -201,7 +201,7 @@ class Post(WPEntity):
 		'''
 		raise Exception("Although 'date' is a valid property, we don't have access to the WordPress server's time zone. " +
 						"Please use the 'date_gmt' property instead (see: https://core.trac.wordpress.org/ticket/41032).")
-		
+
 	@date.setter
 	def date(self, new_date):
 		'''
@@ -209,7 +209,7 @@ class Post(WPEntity):
 		'''
 		raise Exception("The 'date' property depends on knowing the server's time zone, which we don't. " +
 						"Please use the 'date_gmt' property instead (see: https://core.trac.wordpress.org/ticket/41032).")
-		
+
 	@property
 	def date_gmt(self):
 		'''
@@ -219,7 +219,7 @@ class Post(WPEntity):
 			# format of this field is ISO 8610 (e.g. "2018-07-17T17:33:36")
 			self._date_gmt = dateutil.parser.parse(self.s.date_gmt) # returns datetime object
 		return self._date_gmt
-		
+
 	@date_gmt.setter
 	def date_gmt(self, new_date):
 		'''
@@ -237,14 +237,14 @@ class Post(WPEntity):
 				raise ValueError("The found 'date_gmt' string from the schema could not be converted to a datetime object.".format(new_date))
 		else:
 			raise ValueError("'date_gmt' must be set to either a datetime.datetime object or else an ISO 8601 string.")
-		
+
 	@property
 	def status(self):
 		'''
 		The status of the post, one of ["publish", "future", "draft", "pending", "private"].
 		'''
 		return self.s.status
-		
+
 	@status.setter
 	def status(self, new_status):
 		'''
@@ -258,7 +258,7 @@ class Post(WPEntity):
 				self.s.status = new_status
 			else:
 				raise ValueError('Post status must be one of ["publish", "future", "draft", "pending", "private"].')
-		
+
 	@property
 	def author(self):
 		'''
@@ -278,7 +278,7 @@ class Post(WPEntity):
 # 			else:
 # 				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
 		return self._author
-	
+
 	@author.setter
 	def author(self, author):
 		'''
@@ -296,7 +296,7 @@ class Post(WPEntity):
 		Whether or not comments are open on the object, one of ["open", "closed"].
 		'''
 		return self.comment_status
-		
+
 	@comment_status.setter
 	def comment_status(self, new_status):
 		'''
@@ -317,7 +317,7 @@ class Post(WPEntity):
 		Whether or not this post can be pinged., one of ["open", "closed"].
 		'''
 		return self.ping_status
-		
+
 	@ping_status.setter
 	def ping_status(self, new_status):
 		'''
@@ -331,14 +331,14 @@ class Post(WPEntity):
 				self.ping_status = new_status
 			else:
 				raise ValueError('Ping status must be one of ["open", "closed"].')
-	
+
 	@property
 	def format(self):
 		'''
 		The format of the post, one of ["standard", "aside", "chat", "gallery", "link", "image", "quote", "status", "video", "audio"].
 		'''
 		return self.ping_status
-		
+
 	@format.setter
 	def format(self, new_value):
 		'''
@@ -352,7 +352,7 @@ class Post(WPEntity):
 				self.format = format
 			else:
 				raise ValueError('Format must be one of ["open", "closed"].')
-	
+
 	@property
 	def comments(self):
 		'''
@@ -361,7 +361,7 @@ class Post(WPEntity):
 		if self._comments is None:
 			self._comments = self.api.CommentRequest(post=self).get()
 		return self._comments
-	
+
 	@property
 	def categories(self):
 		'''
@@ -375,14 +375,14 @@ class Post(WPEntity):
 				except exc.NoEntityFound:
 					logger.debug("Expected to find category ID={0} from post (ID={1}), but no category found.".format(category_id, self.s.id))
 		return self._categories
-	
+
 	@property
 	def category_names(self):
 		if self.categories is not None:
 			return [x.s.name for x in self.categories]
 		else:
 			return list()
-	
+
 
 class PostRequest(WPRequest):
 	'''
@@ -392,13 +392,13 @@ class PostRequest(WPRequest):
 		super().__init__(api=api)
 		self.id = None # WordPress ID
 		self._post_fields = None
-		
+
 		self.url = self.api.base_url + "posts"
-		
+
 		# values read from the response header
 		self.total = None
 		self.total_pages = None
-		
+
 		# parameters that undergo validation, i.e. need custom setter
 		self._after = None
 		self._before = None
@@ -408,7 +408,7 @@ class PostRequest(WPRequest):
 		self._page = None
 		self._per_page = None
 		self._sticky = None
-		
+
 		self._status = list()
 		self._author_ids = list()
 		self._author_exclude = list()
@@ -419,12 +419,12 @@ class PostRequest(WPRequest):
 		self._categories_exclude_ids = list()
 		self._tags = list() # list of IDs of tags
 		self._tags_exclude = list() # list of IDs of tags
-				
+
 		if categories:
 			self.categories = categories
 		if slugs:
 			self.slugs = slugs
-		
+
 	@property
 	def parameter_names(self):
 		'''
@@ -436,7 +436,7 @@ class PostRequest(WPRequest):
 									 "order", "orderby", "slug", "status", "categories",
 									 "categories_exclude", "tags", "tags_exclude", "sticky"]
 		return self._parameter_names
-	
+
 	def populate_request_parameters(self):
 		'''
 		Populates 'self.parameters' to prepare for executing a request.
@@ -445,39 +445,39 @@ class PostRequest(WPRequest):
 			self.parameters["context"] = self.context
 		else:
 			self.parameters["context"] = "view" # default value
-			
+
 		if self.page:
 			self.parameters["page"] = self.page
-		
+
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
 
 		if self.search:
 			self.parameters["search"] = self.search
-			
+
 		if self.after:
 			self.parameters["after"] = self.after.isoformat()
 
 		if len(self.author) > 0:
 			# takes a list of author IDs
 			self.parameters["author"] = ",".join(self.author)
-		
+
 		# author_exclude : Ensure result set excludes posts assigned to specific authors.
 		if len(self.author_exclude) > 0:
 			self.parameters["author_exclude"] = ",".join(self.author_exclude)
-			
+
 		# before : Limit response to posts published before a given ISO8601 compliant date.
 		if self.before is not None:
 			self.parameters["before"] = self.before.isoformat()
-		
+
 		# exclude : Ensure result set excludes specific IDs.
 		if len(self.exclude) > 0:
 			self.parameters["exclude"] = ",".join(self.exclude)
-		
+
 		# include : Limit result set to specific IDs.
 		if len(self.include) > 0:
 			self.parameters["include"] = ",".join(self.include)
-		
+
 		# offset : Offset the result set by a specific number of items.
 		if self.offset:
 			self.parameters["offset"] = self.offset
@@ -494,7 +494,7 @@ class PostRequest(WPRequest):
 		# slug : Limit result set to posts with one or more specific slugs.
 		if self.slug:
 			self.parameters["slug"] = self.slug
-			
+
 		# status : Limit result set to posts assigned one or more statuses. (default: publish)
 		if len(self.status) > 0:
 			self.parameters["status"] = ",".join(self.status)
@@ -507,14 +507,14 @@ class PostRequest(WPRequest):
 		if len(self.categories_exclude) > 0:
 			self.parameters["categories_exclude"] = ",".join(self.categories_exclude)
 
-		# tags : Limit result set to all items that have the specified term assigned in the tags taxonomy. 
+		# tags : Limit result set to all items that have the specified term assigned in the tags taxonomy.
 		if len(self.tags) > 0:
 			self.parameters["tags"] = ",".join(self.tags)
 
 		# tags_exclude : Limit result set to all items except those that have the specified term assigned in the tags taxonomy.
 		if len(self.tags_exclude) > 0:
 			self.parameters["tags_exclude"] = ",".join(self.tags_exclude)
-					
+
 		# sticky : Limit result set to items that are sticky.
 		if self.sticky:
 			self.parameters["sticky"] = "1"
@@ -522,13 +522,13 @@ class PostRequest(WPRequest):
 	def get(self, class_object=Post, count=False, embed=True, links=True):
 		'''
 		Returns a list of 'Post' objects that match the parameters set in this object.
-		
+
 		class_object : the class of the objects to instantiate based on the response, used when implementing custom subclasses
 		count        : BOOL, return the number of entities matching this request, not the objects themselves
 		embed        : BOOL, if True, embed details on linked resources (e.g. URLs) instead of just an ID in response to reduce number of HTTPS calls needed,
-			           see: https://developer.wordpress.org/rest-api/using-the-rest-api/linking-and-embedding/#embedding
+					   see: https://developer.wordpress.org/rest-api/using-the-rest-api/linking-and-embedding/#embedding
 		links        : BOOL, if True, returns with response a map of links to other API resources
-		'''		
+		'''
 		super().get(class_object=class_object, count=count, embed=embed, links=links)
 
 		#if self.id:
@@ -538,7 +538,7 @@ class PostRequest(WPRequest):
 			self.parameters["_embed"] = "true"
 
 		self.populate_request_parameters()
-		
+
 		try:
 			self.get_response()
 			logger.debug("URL='{}'".format(self.request.url))
@@ -549,7 +549,7 @@ class PostRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
-			
+
 			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		self.process_response_headers()
@@ -567,10 +567,10 @@ class PostRequest(WPRequest):
 		if isinstance(posts_data, dict):
 			# only one object was returned; make it a list
 			posts_data = [posts_data]
-		
+
 		posts = list()
 		for d in posts_data:
-		
+
 			# Before we continue, do we have this Post in the cache already?
 			try:
 				post = self.api.wordpress_object_cache.get(class_name=class_object.__name__, key=d["id"])
@@ -578,17 +578,17 @@ class PostRequest(WPRequest):
 				post = class_object.__new__(class_object) # default = Post()
 				post.__init__(api=self.api)
 				post.json = json.dumps(d)
-	
+
 				post.update_schema_from_dictionary(d)
-			
+
 				# Check for embedded content
 				if "_embedded" in d:
 					embedded = d["_embedded"]
 					for key in embedded:
-					
+
 						# These are related objects, provided by the API in full.
 						# See if the objects are in the cache first, and if not, create them.
-					
+
 						if key == "author":
 							# value is a list of objects (dictionaries), only expecting one
 							author_obj = embedded[key][0]
@@ -598,9 +598,9 @@ class PostRequest(WPRequest):
 								author = User(api=self.api)
 								author.update_schema_from_dictionary(author_obj)
 								self.api.wordpress_object_cache.set(value=author, keys=(author.s.id, author.s.slug))
-							
+
 							post.author = author
-	
+
 						elif key == "wp:featuredmedia":
 							# value is a list of objects (dictionaries), only expecting one
 							media_obj = embedded[key][0]
@@ -610,15 +610,15 @@ class PostRequest(WPRequest):
 								media = Media(api=self.api)
 								media.update_schema_from_dictionary(media_obj)
 								self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
-								
+
 							post.featured_media = media
-						
+
 						elif key == "wp:term":
 							# value is list of lists,
 							# first list is a list of metadata objects (can potentially be different kinds, or is this strictly 'category'?)
 							# (this is not documented)
 							# see: https://www.sitepoint.com/wordpress-term-meta/
-							
+
 							for term_list in embedded[key]:
 								if len(term_list) == 0:
 									continue
@@ -631,31 +631,31 @@ class PostRequest(WPRequest):
 											category = Category(api=self.api)
 											category.update_schema_from_dictionary(category_obj)
 											self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
-										
+
 										post.categories.append(category)
-										
+
 									else:
 										logger.warning("Unknown taxonomy encountered in _embedded data of Post (or something else entirely): {0}".format(json.dumps(term_list)))
 						else:
 							logger.debug("Note: Unhandled embedded content in {0}, key='{1}'".format(self.__class__.__name__, key))
-				
+
 				# perform postprocessing for custom fields
 				post.postprocess_response()
-				
+
 				# add to cache
 				self.api.wordpress_object_cache.set(value=post, keys=(post.s.id, post.s.slug))
-				
+
 			finally:
 				posts.append(post)
-			
+
 		return posts
-		
+
 	@property
 	def context(self):
 		if self._context is None:
 			self._context = None
 		return self._context
-	
+
 	@context.setter
 	def context(self, value):
 		if value is None:
@@ -671,14 +671,14 @@ class PostRequest(WPRequest):
 			except:
 				pass
 			raise ValueError ("'context' may only be one of ['view', 'embed', 'edit']")
-	
+
 	@property
 	def page(self):
 		'''
 		Current page of the collection.
 		'''
 		return self._page
-		
+
 	@page.setter
 	def page(self, value):
 		#
@@ -698,7 +698,7 @@ class PostRequest(WPRequest):
 		Maximum number of items to be returned in result set.
 		'''
 		return self._per_page
-		
+
 	@per_page.setter
 	def per_page(self, value):
 		# only accept integers or strings that can become integers
@@ -710,14 +710,14 @@ class PostRequest(WPRequest):
 				self._per_page = int(value)
 			except ValueError:
 				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
-	
+
 	@property
 	def after(self):
 		'''
 		WordPress parameter to return posts after this date.
 		'''
 		return self._after
-	
+
 	@after.setter
 	def after(self, value):
 		'''
@@ -737,14 +737,14 @@ class PostRequest(WPRequest):
 	@property
 	def author(self):
 		return self._author_ids
-		
+
 	@author.setter
 	def author(self, value):
 		'''
 		Set author parameter for this request; stores WordPress user ID.
 		'''
 		author_id = None
-		
+
 		if value is None:
 			self.parameters.pop("author", None) # remove key
 			return
@@ -773,10 +773,10 @@ class PostRequest(WPRequest):
 					author_id = user.s.id
 				except exc.NoEntityFound:
 					raise ValueError("Could not determine a user from the value: {0} (type {1})".format(value, type(value)))
-							
+
 		else:
 			raise ValueError("Unexpected value type passed to 'author' (type: '{1}')".format(type(value)))
-		
+
 		assert author_id is not None, "could not determine author_id from value {0}".format(value)
 		#self.parameters["author"].append(str(author_id))
 		self._author_ids.append(author_id)
@@ -784,16 +784,16 @@ class PostRequest(WPRequest):
 	@property
 	def author_exclude(self):
 		return self._author_exclude
-		
+
 	@author_exclude.setter
 	def author_exclude(self, value):
 		'''
 		Set author to exclude from this query; stores WordPress user ID.
 		'''
 		author_id = None
-		
+
 		# plan: define author_id, append to "self._author_ids" list below
-		
+
 		if value is None:
 			self.parameters.pop("author_exclude", None) # remove key
 			return
@@ -822,10 +822,10 @@ class PostRequest(WPRequest):
 					author_id = user.s.id
 				except exc.NoEntityFound:
 					raise ValueError("Could not determine a user from the value: '{0}' (type '{1}')".format(value, type(value)))
-							
+
 		else:
 			raise ValueError("Unexpected value type passed to 'author_exclude' (type: '{1}')".format(type(value)))
-		
+
 		assert author_id is not None, "Could not determine author_id from value '{0}'.".format(value)
 		self._author_exclude.append(author_id)
 
@@ -835,7 +835,7 @@ class PostRequest(WPRequest):
 		WordPress parameter to return posts before this date.
 		'''
 		return self._before
-	
+
 	@after.setter
 	def before(self, value):
 		'''
@@ -855,7 +855,7 @@ class PostRequest(WPRequest):
 	@property
 	def exclude(self):
 		return self._excludes
-	
+
 	@exclude.setter
 	def exclude(self, values):
 		'''
@@ -867,7 +867,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("'excludes' must be provided as a list (or append to the existing list).")
-		
+
 		for exclude_id in values:
 			if isinstance(exclude_id, int):
 				self._excludes.append(str(exclude_id))
@@ -892,7 +892,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Includes must be provided as a list (or append to the existing list).")
-		
+
 		for include_id in values:
 			if isinstance(include_id, int):
 				self._includes.append(str(include_id))
@@ -905,7 +905,7 @@ class PostRequest(WPRequest):
 	@property
 	def offset(self):
 		return self._offset
-		
+
 	@offset.setter
 	def offset(self, value):
 		'''
@@ -926,7 +926,7 @@ class PostRequest(WPRequest):
 	def order(self):
 		return self._order;
 		#return self.api_params.get('order', None)
-		
+
 	@order.setter
 	def order(self, value):
 		if value is None:
@@ -949,7 +949,7 @@ class PostRequest(WPRequest):
 	@property
 	def orderby(self):
 		return self._orderby # parameters.get('orderby', None)
-		
+
 	@orderby.setter
 	def orderby(self, value):
 		if value is None:
@@ -975,7 +975,7 @@ class PostRequest(WPRequest):
 		The list of post slugs to retrieve.
 		'''
 		return self._slugs
-		
+
 	@slugs.setter
 	def slugs(self, values):
 		if values is None:
@@ -984,7 +984,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Slugs must be provided as a list (or append to the existing list).")
-		
+
 		for s in values:
 			if isinstance(s, str):
 				self._slugs.append(s)
@@ -994,11 +994,11 @@ class PostRequest(WPRequest):
 	@property
 	def status(self):
 		return self._status
-	
+
 	@status.setter
 	def status(self, value):
 		'''
-		
+
 		Note that 'status' may contain one or more values.
 		Ref: https://developer.wordpress.org/rest-api/reference/posts/#arguments
 		'''
@@ -1018,7 +1018,7 @@ class PostRequest(WPRequest):
 		except:
 			pass
 		raise ValueError("'status' must be one of ['draft', 'pending', 'private', 'publish', 'future'] ('{0}' given)".format(value))
-		
+
 	@property
 	def categories(self):
 		return self._category_ids
@@ -1027,7 +1027,7 @@ class PostRequest(WPRequest):
 	def categories(self, values):
 		'''
 		This method validates the categories passed to this request.
-		
+
 		It accepts category ID (integer or string) or the slug value.
 		'''
 		if values is None:
@@ -1036,7 +1036,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Categories must be provided as a list (or append to the existing list, or None).")
-		
+
 		for c in values:
 			cat_id = None
 			if isinstance(c, Category):
@@ -1058,7 +1058,7 @@ class PostRequest(WPRequest):
 						#self._category_ids.append(category.s.id)
 					except exc.NoEntityFound:
 						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
-			
+
 			# Categories are stored as string ID values.
 			#
 			self._category_ids.append(str(cat_id))
@@ -1071,7 +1071,7 @@ class PostRequest(WPRequest):
 	def categories_exclude(self, values):
 		'''
 		This method validates the categories_exclude passed to this request.
-		
+
 		It accepts category ID (integer or string) or the slug value.
 		'''
 		if values is None:
@@ -1080,7 +1080,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("categories_exclude must be provided as a list (or append to the existing list, or None).")
-		
+
 		for c in values:
 			cat_id = None
 			if isinstance(c, Category):
@@ -1102,7 +1102,7 @@ class PostRequest(WPRequest):
 						#self._category_exclude_ids.append(category.s.id)
 					except exc.NoEntityFound:
 						logger.debug("Asked to find a category with the slug '{0}' but not found.".format(slug))
-			
+
 			# Categories are stored as string ID values.
 			#
 			self._category_exclude_ids.append(str(cat_id))
@@ -1113,7 +1113,7 @@ class PostRequest(WPRequest):
 		Return only items that have these tags.
 		'''
 		return self._tags
-		
+
 	@tags.setter
 	def tags(self, values):
 		'''
@@ -1125,17 +1125,17 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Tags must be provided as a list of IDs (or append to the existing list).")
-		
+
 		for tag_id in values:
 			if isinstance(tag_id, int):
-				self.tags.append(tag_id)
+				self.tags.append(str(tag_id))
 			elif isinstance(tag_id, str):
 				try:
 					self.tags.append(str(int(tag_id)))
 				except ValueError:
 					raise ValueError("The given tag was in the form of a string but could not be converted to an integer ('{0}').".format(tag_id))
 			else:
-				raise ValueError("Unexpected type for property list 'tags'; expected str or int, got '{0}'".format(type(s)))			
+				raise ValueError("Unexpected type for property list 'tags'; expected str or int, got '{0}'".format(type(s)))
 
 	@property
 	def tags_exclude(self):
@@ -1143,8 +1143,8 @@ class PostRequest(WPRequest):
 		Return only items that do not have these tags.
 		'''
 		return self._tags_exclude
-		
-	@tags.setter
+
+	@tags_exclude.setter
 	def tags_exclude(self, values):
 		'''
 		List of tag IDs attached to items to be excluded from query.
@@ -1155,7 +1155,7 @@ class PostRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Tags must be provided as a list of IDs (or append to the existing list).")
-		
+
 		for tag_id in values:
 			if isinstance(tag_id, int):
 				self._tags_exclude.append(tag_id)
@@ -1173,7 +1173,7 @@ class PostRequest(WPRequest):
 		If 'True', limits result set to items that are sticky.
 		'''
 		return self._sticky
-		
+
 	@sticky.setter
 	def sticky(self, value):
 		'''
@@ -1187,5 +1187,3 @@ class PostRequest(WPRequest):
 			value = (value in ['1',1])
 		else:
 			raise Exception("The property 'sticky' is a Boolean, must be set to one of [True, False, '0', '1', 0, 1].")
-
-
