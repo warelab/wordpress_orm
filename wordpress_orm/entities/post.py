@@ -559,8 +559,6 @@ class PostRequest(WPRequest):
 			if self.total is None:
 				raise Exception("Header 'X-WP-Total' was not found.") # if you are getting this, modify to use len(posts_data)
 			return self.total
-#		if count:
-#			return len(posts_data)
 
 		posts_data = self.response.json()
 
@@ -578,7 +576,6 @@ class PostRequest(WPRequest):
 				post = class_object.__new__(class_object) # default = Post()
 				post.__init__(api=self.api)
 				post.json = json.dumps(d)
-
 				post.update_schema_from_dictionary(d)
 
 				# Check for embedded content
@@ -632,8 +629,7 @@ class PostRequest(WPRequest):
 											category.update_schema_from_dictionary(category_obj)
 											self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
 
-										post.categories.append(category)
-
+# 										post.categories.append(category)
 									else:
 										logger.warning("Unknown taxonomy encountered in _embedded data of Post (or something else entirely): {0}".format(json.dumps(term_list)))
 						else:

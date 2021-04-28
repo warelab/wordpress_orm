@@ -162,7 +162,6 @@ class CategoryRequest(WPRequest):
 				self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
 			finally:
 				categories.append(category)
-		
 		return categories
 
 	@property
