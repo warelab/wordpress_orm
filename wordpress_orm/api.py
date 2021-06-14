@@ -195,6 +195,7 @@ class API:
 		if len(media_list) == 1:
 			return media_list[0]
 		elif len(media_list) == 0:
+			return None
 			raise exc.NoEntityFound()
 		else:
 			# more than one found
