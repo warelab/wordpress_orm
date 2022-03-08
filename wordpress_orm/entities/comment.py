@@ -179,7 +179,7 @@ class CommentRequest(WPRequest):
 				comment.postprocess_response()
 	
 				# add to cache
-				self.api.wordpress_object_cache.set(value=comment, keys=(comment.s.id, comment.s.slug))
+# 				self.api.wordpress_object_cache.set(value=comment, keys=(comment.s.id, comment.s.slug))
 			finally:
 				comments.append(comment)
 		

@@ -245,7 +245,7 @@ class MediaRequest(WPRequest):
 				media.postprocess_response(data=d)
 	
 				# add to cache
-				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
+# 				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
 			finally:
 				media_objects.append(media)
 		

@@ -235,7 +235,7 @@ class TagRequest(WPRequest):
 				tag.postprocess_response()
 
 				# add to cache
-				self.api.wordpress_object_cache.set(value=tag, keys=(tag.s.id, tag.s.slug))
+# 				self.api.wordpress_object_cache.set(value=tag, keys=(tag.s.id, tag.s.slug))
 
 			finally:
 				tags.append(tag)

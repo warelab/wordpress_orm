@@ -594,7 +594,7 @@ class PostRequest(WPRequest):
 							except WPORMCacheObjectNotFoundError:
 								author = User(api=self.api)
 								author.update_schema_from_dictionary(author_obj)
-								self.api.wordpress_object_cache.set(value=author, keys=(author.s.id, author.s.slug))
+# 								self.api.wordpress_object_cache.set(value=author, keys=(author.s.id, author.s.slug))
 
 							post.author = author
 
@@ -606,7 +606,7 @@ class PostRequest(WPRequest):
 							except WPORMCacheObjectNotFoundError:
 								media = Media(api=self.api)
 								media.update_schema_from_dictionary(media_obj)
-								self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
+# 								self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
 
 							post.featured_media = media
 
@@ -627,7 +627,7 @@ class PostRequest(WPRequest):
 										except WPORMCacheObjectNotFoundError:
 											category = Category(api=self.api)
 											category.update_schema_from_dictionary(category_obj)
-											self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
+# 											self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
 
 # 										post.categories.append(category)
 									else:
@@ -639,7 +639,7 @@ class PostRequest(WPRequest):
 				post.postprocess_response()
 
 				# add to cache
-				self.api.wordpress_object_cache.set(value=post, keys=(post.s.id, post.s.slug))
+# 				self.api.wordpress_object_cache.set(value=post, keys=(post.s.id, post.s.slug))
 
 			finally:
 				posts.append(post)

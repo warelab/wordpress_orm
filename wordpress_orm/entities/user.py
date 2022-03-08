@@ -269,7 +269,7 @@ class UserRequest(WPRequest):
 				user.postprocess_response()
 				
 				# add to cache
-				self.api.wordpress_object_cache.set(value=user, keys=(user.s.id, user.s.slug))
+# 				self.api.wordpress_object_cache.set(value=user, keys=(user.s.id, user.s.slug))
 			finally:
 				users.append(user)
 

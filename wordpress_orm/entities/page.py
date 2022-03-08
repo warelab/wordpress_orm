@@ -244,7 +244,7 @@ class PageRequest(WPRequest):
 				page.postprocess_response()
 	
 				# add to cache
-				self.api.wordpress_object_cache.set(value=page, keys=(page.s.id, page.s.slug))
+# 				self.api.wordpress_object_cache.set(value=page, keys=(page.s.id, page.s.slug))
 			finally:
 				pages.append(page)
 				
