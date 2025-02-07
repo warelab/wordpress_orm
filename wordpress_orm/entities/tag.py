@@ -83,7 +83,7 @@ class Tag(WPEntity):
 
 		try:
 			super().post(url=url, data=post_parameters, parameters=post_parameters)
-			logger.debug("Succes! Response: {}".format(json.dumps(self.post_response.json()["id"])))
+			logger.debug("Success! Response: {}".format(json.dumps(self.post_response.json()["id"])))
 			return self.post_response.json()["id"]
 		except requests.exceptions.HTTPError:
 			logger.debug("Post response code: {}".format(self.post_response.status_code))
@@ -189,7 +189,7 @@ class TagRequest(WPRequest):
 			self.get_response(wpid=self.id)
 			logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
-			logger.debug("page response code: {}".format(self.response.status_code))
+			logger.debug("page response code: {0}\n{1}".format(self.response.status_code, self.request.url))
 			if self.response.status_code == 400: # bad request
 				logger.debug("URL={}".format(self.response.url))
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))

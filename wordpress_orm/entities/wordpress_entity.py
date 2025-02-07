@@ -207,7 +207,6 @@ class WPRequest(metaclass=ABCMeta):
 				url = "{0}/{1}".format(self.url, wpid)
 		
 			if self.api.session is None:
-				#logger.debug("creating new request")
 				# no exiting request, create a new one
 				self.response = requests.get(url=url, params=self.parameters, auth=self.api.auth())
 			else:
