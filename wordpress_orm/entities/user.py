@@ -14,16 +14,16 @@ from ..exc import AuthenticationRequired, MissingRequiredParameter
 logger = logging.getLogger(__name__.split(".")[0]) # package name
 
 class User(WPEntity):
-	
+
 	def __init__(self, id=None, session=None, api=None, from_dictionary=None):
 		super().__init__(api=api)
-		
+
 		# parameters that undergo validation, i.e. need custom setter
 		self._context = None
 
 		# cache related objects
-		self._posts = None			
-		
+		self._posts = None
+
 	@property
 	def schema_fields(self):
 		if self._schema_fields is None:
@@ -36,7 +36,7 @@ class User(WPEntity):
 	@property
 	def post_fields(self):
 		if self._post_fields is None:
-			self._post_fields = ["username", "name", "first_name", "last_name", "email", "url", 
+			self._post_fields = ["username", "name", "first_name", "last_name", "email", "url",
 								 "description", "locale", "nickname", "slug", "roles", "password", "meta"]
 		return self._post_fields
 
@@ -46,26 +46,26 @@ class User(WPEntity):
 		'''
 		# is this a new user?
 		new_user = (self.s.id is None)
-		
+
 		post_fields = ["username", "name", "first_name", "last_name", "email", "url",
 					   "description", "locale", "nickname", "slug", "roles", "password", "meta"]
 		if new_user:
 			post_fields.append("id")
-		
+
 		parameters = dict()
 		for field in post_fields:
 			if getattr(self.s, field) is not None:
 				parameters[field] = getattr(self.s, field)
-		
+
 		# new user validation
 		if new_user:
 			required_fields = ["username", "email", "password"]
 			for field in required_fields:
 				if getattr(self.s, field) is None:
 					raise MissingRequiredParameter("The '{0}' field must be provided when creating a new user.".format(field))
-		
+
 		response = self.api.session.post(url=self.url, params=parameters, auth=self.api.auth())
-				
+
 		return response
 
 	@property
@@ -78,29 +78,29 @@ class User(WPEntity):
 
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, name='{3}'>".format(self.__class__.__name__, hex(id(self)), self.s.id, self.s.name)
-	
+
 	def gravatar_url(self, size=200, rating='g', default_image_style="mm"):
 		'''
 		Returns a URL to the Gravatar image associated with the user's email address.
-		
+
 		Ref: https://en.gravatar.com/site/implement/images/
-		
+
 		size: int, can be anything from 1 to 2048 px
 		rating: str, maximum rating of the image, one of ['g', 'pg', 'r', 'x']
 		default_image: str, type of image if gravatar image doesn't exist, one of ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank']
 		'''
 		if rating not in ['g', 'pg', 'r', 'x']:
 			raise ValueError("The gravatar max rating must be one of ['g', 'pg', 'r', 'x'].")
-		
+
 		if default_image_style not in ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank']:
-			raise ValueError("The gravatar default image style must be one of ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank'].")			
-		
+			raise ValueError("The gravatar default image style must be one of ['404', 'mm', 'identicon', 'monsterid', 'wavatar', 'retro', 'robohash', 'blank'].")
+
 		if not isinstance(size, int):
 			try:
 				size = int(size)
 			except ValueError:
 				raise ValueError("The size parameter must be an integer value between 1 and 2048.")
-		
+
 		if isinstance(size, int):
 			if 1 <= size <= 2048:
 				#
@@ -114,15 +114,15 @@ class User(WPEntity):
 				params.append("d={0}".format(default_image_style)) # set default image to 'mystery man'
 				params.append("r={0}".format(rating)) # set max rating to 'g'
 				params.append("s={0}".format(size))
-				
+
 				return "{0}?{1}".format(grav_url_base, "&".join(params))
 		else:
 			raise ValueError("The size parameter must be an integer.")
-		
+
 	@property
 	def fullname(self):
 		return "{0} {1}".format(self.s.first_name, self.s.last_name)
-	
+
 
 class UserRequest(WPRequest):
 	'''
@@ -131,24 +131,24 @@ class UserRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.id = None # WordPress ID
-		
+
 		self.url = self.api.base_url + 'users'
-		
+
 		# values from headers
 		self.total = None
 		self.total_pages = None
-		
+
 		self._page = None
 		self._per_page = None
 		self._offset = None
 		self._order = None
 		self._orderby = None
-		
+
 		# parameters that undergo validation, i.e. need custom setter
 		self._includes = list()
 		self._slugs = list() # can accept more than one
 		self._roles = list()
-				
+
 	@property
 	def parameter_names(self):
 		if self._parameter_names is None:
@@ -156,7 +156,7 @@ class UserRequest(WPRequest):
 			self._parameter_names = ["context", "page", "per_page", "search", "exclude",
 									 "include", "offset", "order", "orderby", "slug", "roles"]
 		return self._parameter_names
-	
+
 	def populate_request_parameters(self):
 		'''
 		Populates 'self.parameters' to prepare for executing a request.
@@ -168,7 +168,7 @@ class UserRequest(WPRequest):
 
 		if self.page:
 			self.parameters["page"] = self.page
-		
+
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
 
@@ -182,15 +182,15 @@ class UserRequest(WPRequest):
 		# include : Limit result set to specific IDs.
 		if len(self._includes) > 0:
 			self.parameters["include"] = ",".join.self.includes
-			
+
 		# offset : Offset the result set by a specific number of items.
 		if self.offset:
 			self.parameters["offset"] = self.search
-		
+
 		# order : Order sort attribute ascending or descending, default "asc", one of ["asc", "desc"]
 		if self.order:
 			self.parameters["order"] = self.order
-		
+
 		# orderby : Sort collection by object attribute.
 		if self.orderby:
 			self.parameters["orderby"] = self.orderby
@@ -198,7 +198,7 @@ class UserRequest(WPRequest):
 		# slug : Limit result set to users with one or more specific slugs.
 		if len(self.slug) > 0:
 			self.parameters["slug"] = ",".join(self.slug)
-		
+
 		# roles : Limit result set to users matching at least one specific role provided. Accepts csv list or single role.
 		if len(self.roles) > 0:
 			self.parameters["roles"] = ",".join(self.roles)
@@ -206,7 +206,7 @@ class UserRequest(WPRequest):
 	def get(self, class_object=User, count=False, embed=True, links=True):
 		'''
 		Returns a list of 'Tag' objects that match the parameters set in this object.
-		
+
 		class_object : the class of the objects to instantiate based on the response, used when implementing custom subclasses
 		count        : BOOL, return the number of entities matching this request, not the objects themselves
 		embed        : BOOL, if True, embed details on linked resources (e.g. URLs) instead of just an ID in response to reduce number of HTTPS calls needed,
@@ -216,7 +216,7 @@ class UserRequest(WPRequest):
 		super().get(class_object=class_object, count=count, embed=embed, links=links)
 		#if self.id:
 		#	self.url += "/{}".format(self.id)
-		
+
 		self.populate_request_parameters()
 
 		try:
@@ -236,38 +236,38 @@ class UserRequest(WPRequest):
 			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		self.process_response_headers()
-	
+
 		if count:
 			# return just the number of objects that match this request
 			if self.total is None:
 				raise Exception("Header 'X-WP-Total' was not found.") # if you are getting this, modify to use len(posts_data)
 			return self.total
-	
+
 		users_data = self.response.json()
-		
+
 		if isinstance(users_data, dict):
 			# only one object was returned; make it a list
 			users_data = [users_data]
-	
+
 		users = list()
 		for d in users_data:
 
 			# Before we continue, do we have this User in the cache already?
-			try:
-				user = self.api.wordpress_object_cache.get(class_name=class_object.__name__, key=d["id"])
-			except WPORMCacheObjectNotFoundError:
+# 			try:
+# 				user = self.api.wordpress_object_cache.get(class_name=class_object.__name__, key=d["id"])
+# 			except WPORMCacheObjectNotFoundError:
 				user = class_object.__new__(class_object)
 				user.__init__(api=self.api)
 				user.json = json.dumps(d)
-				
+
 				user.update_schema_from_dictionary(d)
-				
+
 				if "_embedded" in d:
 					logger.debug("TODO: implement _embedded content for User object")
-	
+
 				# perform postprocessing for custom fields
 				user.postprocess_response()
-				
+
 				# add to cache
 # 				self.api.wordpress_object_cache.set(value=user, keys=(user.s.id, user.s.slug))
 			finally:
@@ -276,11 +276,11 @@ class UserRequest(WPRequest):
 		return users
 
 	# ================================= query properties ==============================
-	
+
 	@property
 	def context(self):
 		return self._context
-	
+
 	@context.setter
 	def context(self, value):
 		if value is None:
@@ -295,14 +295,14 @@ class UserRequest(WPRequest):
 			except:
 				pass
 		raise ValueError ("'context' may only be one of ['view', 'embed', 'edit'] ('{0}' given)".format(value))
-				
+
 	@property
 	def page(self):
 		'''
 		Current page of the collection.
 		'''
 		return self._page
-		
+
 	@page.setter
 	def page(self, value):
 		#
@@ -322,7 +322,7 @@ class UserRequest(WPRequest):
 		Maximum number of items to be returned in result set.
 		'''
 		return self._per_page
-		
+
 	@per_page.setter
 	def per_page(self, value):
 		# only accept integers or strings that can become integers
@@ -350,7 +350,7 @@ class UserRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Includes must be provided as a list (or append to the existing list).")
-		
+
 		for inc in values:
 			if isinstance(inc, int):
 				self._includes.append(str(inc))
@@ -363,7 +363,7 @@ class UserRequest(WPRequest):
 	@property
 	def offset(self):
 		return self._offset
-		
+
 	@offset.setter
 	def offset(self, value):
 		'''
@@ -384,7 +384,7 @@ class UserRequest(WPRequest):
 	def order(self):
 		return self._order;
 		#return self.api_params.get('order', None)
-		
+
 	@order.setter
 	def order(self, value):
 		if value is None:
@@ -408,7 +408,7 @@ class UserRequest(WPRequest):
 	@property
 	def orderby(self):
 		return self._orderby #api_params.get('orderby', None)
-		
+
 	@orderby.setter
 	def orderby(self, value):
 		if value is None:
@@ -432,7 +432,7 @@ class UserRequest(WPRequest):
 	@property
 	def slug(self):
 		return self._slugs
-	
+
 	@slug.setter
 	def slug(self, value):
 		if value is None:
@@ -452,7 +452,7 @@ class UserRequest(WPRequest):
 		User roles to be used in query.
 		'''
 		return self._roles
-		
+
 	@roles.setter
 	def roles(self, values):
 		if values is None:
@@ -461,10 +461,10 @@ class UserRequest(WPRequest):
 			return
 		elif not isinstance(values, list):
 			raise ValueError("Roles must be provided as a list (or append to the existing list).")
-		
+
 		for role in values:
 			if isinstance(role, str):
 				self.roles.append(role)
 			else:
 				raise ValueError("Unexpected type for property list 'roles'; expected str, got '{0}'".format(type(s)))
-			
+
