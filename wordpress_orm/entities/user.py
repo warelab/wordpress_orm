@@ -236,6 +236,7 @@ class UserRequest(WPRequest):
 			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.json()))
 
 		self.process_response_headers()
+		logger.debug(self.response.status_code)
 
 		if count:
 			# return just the number of objects that match this request
@@ -244,6 +245,7 @@ class UserRequest(WPRequest):
 			return self.total
 
 		users_data = self.response.json()
+		logger.debug(users_data)
 
 		if isinstance(users_data, dict):
 			# only one object was returned; make it a list
@@ -251,27 +253,19 @@ class UserRequest(WPRequest):
 
 		users = list()
 		for d in users_data:
+			user = class_object.__new__(class_object)
+			user.__init__(api=self.api)
+			user.json = json.dumps(d)
 
-			# Before we continue, do we have this User in the cache already?
-# 			try:
-# 				user = self.api.wordpress_object_cache.get(class_name=class_object.__name__, key=d["id"])
-# 			except WPORMCacheObjectNotFoundError:
-				user = class_object.__new__(class_object)
-				user.__init__(api=self.api)
-				user.json = json.dumps(d)
+			user.update_schema_from_dictionary(d)
 
-				user.update_schema_from_dictionary(d)
+			if "_embedded" in d:
+				logger.debug("TODO: implement _embedded content for User object")
 
-				if "_embedded" in d:
-					logger.debug("TODO: implement _embedded content for User object")
+			# perform postprocessing for custom fields
+			user.postprocess_response()
 
-				# perform postprocessing for custom fields
-				user.postprocess_response()
-
-				# add to cache
-# 				self.api.wordpress_object_cache.set(value=user, keys=(user.s.id, user.s.slug))
-			finally:
-				users.append(user)
+			users.append(user)
 
 		return users
 
