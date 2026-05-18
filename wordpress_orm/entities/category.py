@@ -159,7 +159,7 @@ class CategoryRequest(WPRequest):
 				category.postprocess_response()
 				
 				# add to cache
-				self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
+# 				self.api.wordpress_object_cache.set(value=category, keys=(category.s.id, category.s.slug))
 			finally:
 				categories.append(category)
 		return categories

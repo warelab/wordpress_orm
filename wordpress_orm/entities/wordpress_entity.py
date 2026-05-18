@@ -23,10 +23,10 @@ class WPEntity(metaclass=ABCMeta):
 	Abstract superclass for all entities of the WordPress API.
 	'''
 	def __init__(self, api=None):
-		
+
 		if api is None:
 			raise Exception("Use the 'wordpress_orm.API.{0}()' method to create a new '{0}' object (or set the 'api' parameter).".format(self.__class__.__name__))
-		
+
 		self.api = api			   # holds the connection information
 		self.json = None		   # holds the raw JSON returned from the API
 		self.s = WPSchema()		   # an empty object to use to hold custom properties
@@ -36,11 +36,11 @@ class WPEntity(metaclass=ABCMeta):
 		# define the schema properties for the WPSchema object
 		for field in self.schema_fields:
 			setattr(self.s, field, None)
-		
+
 		# POST fields are also implemented as schema properties
 		for field in self.post_fields:
 			setattr(self.s, field, None)
-				
+
 	@abstractproperty
 	def schema_fields(self):
 		'''
@@ -70,7 +70,7 @@ class WPEntity(metaclass=ABCMeta):
 		Usually will access self.json to get the full JSON record that created this entity.
 		'''
 		pass
-		
+
 	def post(self, url=None, parameters=None, data=None):
 		'''
 		Implementation of HTTP POST comment for WordPress entities.
@@ -87,22 +87,22 @@ class WPEntity(metaclass=ABCMeta):
 		Hook for subclasses to allow for custom processing of POST request data (before the request is made).
 		'''
 		pass
-			
+
 	def update_schema_from_dictionary(self, d, process_links=False):
 		'''
 		Replaces schema values with those found in provided dictionary whose keys match the field names.
-		
+
 		This is useful to parse the JSON dictionary returned by the WordPress API or embedded content
 		(see: https://developer.wordpress.org/rest-api/using-the-rest-api/linking-and-embedding/#embedding).
-		
+
 		d : dictionary of data, key=schema field, value=data
 		process_links : parse the values under the "_links" key, if present
 		'''
 		if d is None or not isinstance(d, dict):
 			raise ValueError("The method 'update_schema_from_dictionary' expects a dictionary.")
-		
+
 		fields = self.schema_fields
-		
+
 		for key in fields:
 			if key in d:
 				if isinstance(d[key], dict) and "rendered" in d[key]:
@@ -112,7 +112,7 @@ class WPEntity(metaclass=ABCMeta):
 					setattr(self.s, key, d[key])
 			if key not in fields:
 				logger.debug("WARNING: encountered field ('{0}') in dictionary that is not in the list of schema fields for '{1}' (fields: {2}).".format(key, self.__class__.__name__, fields))
-		
+
 		if process_links:
 			# TODO: handle _links if present
 			raise NotImplementedError("Processing '_links' has not yet been implemented.")
@@ -122,15 +122,15 @@ class WPRequest(metaclass=ABCMeta):
 	Abstract superclass for WordPress requests.
 	'''
 	def __init__(self, api=None):
-		
+
 		if api is None:
 			raise Exception("Create this object ('{0}') from the API object, not directly.".format(self.__class__.__name__))
-		
+
 		# WordPress headers ('X-WP-*')
 		self.total = None		# X-WP-Total
 		self.total_pages = None # X-WP-TotalPages
 		self.nonce = None		# X-WP-Nonce
-		
+
 		self.api = api
 		self.url = None
 		self.parameters = dict()
@@ -142,7 +142,7 @@ class WPRequest(metaclass=ABCMeta):
 			setattr(self, arg, None)
 
 		#self.context = "view" # default value
-	
+
 #	@property
 #	def context(self):
 #		# 'view' is default value in API
@@ -155,7 +155,7 @@ class WPRequest(metaclass=ABCMeta):
 	def get(self, class_object=None, count=False, embed=True, links=True):
 		'''
 		Base implementation of the HTTP GET request to fetch WordPress entities.
-		
+
 		class_object : the class of the objects to instantiate based on the response, used when implementing custom subclasses
 		count        : BOOL, return the number of entities matching this request, not the objects themselves
 		embed        : BOOL, if True, embed details on linked resources (e.g. URLs) instead of just an ID in response to reduce number of HTTPS calls needed,
@@ -166,21 +166,21 @@ class WPRequest(metaclass=ABCMeta):
 			self.parameters["_embed"] = "true"
 		if links is True:
 			self.parameters["_links"] = "true"
-			
+
 		if count:
 			request_context = "embed" # only counting results, this is a shorter response
 		else:
 			request_context = "view" # default value
-			
-		# if the user set the 
-	
+
+		# if the user set the
+
 	def process_response_headers(self):
 		'''
 		Handle any customization of parsing response headers, processes X-WP-* headers by default.
 		'''
 		# read response headers
 		# ---------------------
-		
+
 		# Pagination, ref: https://developer.wordpress.org/rest-api/using-the-rest-api/pagination/
 		#
 		# X-WP-Total      : total number of records in the collection
@@ -190,24 +190,23 @@ class WPRequest(metaclass=ABCMeta):
 			self.total = int(self.response.headers['X-WP-Total'])
 		if 'X-WP-TotalPages' in self.response.headers:
 			self.total_pages = int(self.response.headers['X-WP-TotalPages'])
-			
+
 		if 'X-WP-Nonce' in self.response.headers:
 			self.nonce = self.response.headers['X-WP-Nonce']
-	
+
 	def get_response(self, wpid=None):
 		'''
-		
+
 		wpid : specify this if a specific WordPress object (of given ID) is being requested
 		'''
 		if self.response is None:
-		
+
 			if wpid is None:
 				url = self.url
 			else:
 				url = "{0}/{1}".format(self.url, wpid)
-		
+
 			if self.api.session is None:
-				#logger.debug("creating new request")
 				# no exiting request, create a new one
 				self.response = requests.get(url=url, params=self.parameters, auth=self.api.auth())
 			else:
@@ -215,7 +214,7 @@ class WPRequest(metaclass=ABCMeta):
 				self.response = self.api.session.get(url=url, params=self.parameters, auth=self.api.auth())
 		self.response.raise_for_status()
 		#return self.response
-		
+
 	@property
 	def request(self):
 		if self.response:

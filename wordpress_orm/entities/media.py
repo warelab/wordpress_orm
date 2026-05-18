@@ -18,21 +18,21 @@ logger = logging.getLogger(__name__.split(".")[0]) # package name
 status_values = ["publish", "future", "draft", "pending", "private"]
 
 class Media(WPEntity):
-	
+
 	def __init__(self, id=None, api=None):
 		super().__init__(api=api)
 
 		# related objects to cache
 		self._author = None
 		self._associated_post = None
-			
+
 	def __repr__(self):
 		return "<WP {0} object at {1}, id={2}, type='{3}', file='{4}'>".format(self.__class__.__name__, hex(id(self)),
 																			self.s.id,
 																			self.s.mime_type,
 																			os.path.basename(self.s.source_url))
 
-	@property																			
+	@property
 	def schema_fields(self):
 		if self._schema_fields is None:
 			self._schema_fields = ["date", "date_gmt", "guid", "id", "link", "modified", "modified_gmt",
@@ -59,7 +59,7 @@ class Media(WPEntity):
 		The media type, one of ["image", "file"].
 		'''
 		return self.s.media_type
-	
+
 	@property
 	def author(self):
 		'''
@@ -75,7 +75,7 @@ class Media(WPEntity):
 			else:
 				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
 		return self._author
-	
+
 	@property
 	def post(self):
 		'''
@@ -91,7 +91,7 @@ class Media(WPEntity):
 			else:
 				self._associated_post = None
 		return self._associated_post
-	
+
 
 class MediaRequest(WPRequest):
 	'''
@@ -101,9 +101,9 @@ class MediaRequest(WPRequest):
 	def __init__(self, api=None):
 		super().__init__(api=api)
 		self.id = None # WordPress id
-		
+
 		self.url = self.api.base_url + "media"
-		
+
 		# parameters that undergo validation, i.e. need custom setter
 		# default values set here
 		self._context = None #"view"
@@ -118,7 +118,7 @@ class MediaRequest(WPRequest):
 									 "order", "orderby", "parent", "parent_exclude", "slug", "status",
 									 "media_type", "mime_type"]
 		return self._parameter_names
-	
+
 	def populate_request_parameters(self):
 		'''
 		Populates 'self.parameters' to prepare for executing a request.
@@ -193,14 +193,14 @@ class MediaRequest(WPRequest):
 		links        : BOOL, if True, returns with response a map of links to other API resources
 		'''
 		super().get(class_object=class_object, count=count, embed=embed, links=links)
-		
+
 		#if self.id:
 		#	self.url += "/{}".format(self.id)
-		
+
 #		logger.debug("URL='{}'".format(self.url))
 
 		self.populate_request_parameters()
-		
+
 		try:
 			self.get_response(wpid=self.id)
 			logger.debug("URL='{}'".format(self.request.url))
@@ -235,26 +235,26 @@ class MediaRequest(WPRequest):
 				media = class_object.__new__(class_object) # default = Media()
 				media.__init__(api=self.api)
 				media.json = json.dumps(d)
-				
+
 				media.update_schema_from_dictionary(d)
-				
+
 				if "_embedded" in d:
 					logger.debug("TODO: implement _embedded content for Media object")
-	
+
 				# perform postprocessing for custom fields
 				media.postprocess_response(data=d)
-	
+
 				# add to cache
 				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
 			finally:
 				media_objects.append(media)
-		
+
 		return media_objects
-	
+
 	@property
 	def context(self):
 		return self._context
-	
+
 	@context.setter
 	def context(self, value):
 		if value is None:
@@ -275,7 +275,7 @@ class MediaRequest(WPRequest):
 		Current page of the collection.
 		'''
 		return self._page
-		
+
 	@page.setter
 	def page(self, value):
 		#
@@ -295,7 +295,7 @@ class MediaRequest(WPRequest):
 		Maximum number of items to be returned in result set.
 		'''
 		return self._per_page
-		
+
 	@per_page.setter
 	def per_page(self, value):
 		# only accept integers or strings that can become integers
@@ -308,6 +308,6 @@ class MediaRequest(WPRequest):
 			except ValueError:
 				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
 
-	
 
-			
+
+
